@@ -1,0 +1,65 @@
+# C++ Build
+build/
+cmake/
+
+# Debug Files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Linker Outputs
+*.ilk
+*.map
+*.exp
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Python
+*.pyc
+.ipynb_checkpoints/
+__pycache__/
+.Python
+
+
+# Miscellaneous
+*.zip
+*.log
+*.csv
+*.txt
+*.pickle
+.vscode/
+MANIFEST
+DS_Store
+

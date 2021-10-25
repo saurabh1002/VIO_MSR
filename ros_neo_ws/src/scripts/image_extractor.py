@@ -8,19 +8,19 @@ import numpy as np
 
 
 FILENAME = 'apples_2021-10-14-14-36-15_0'
-ROOT_DIR = '/home/dhagash/Project-2/dataset_orb/mapping'
-DEPTH_SAVE = '/home/dhagash/Project-2/dataset_orb/mapping/images_apples/depth/'
-COLOR_SAVE = '/home/dhagash/Project-2/dataset_orb/mapping/images_apples/rgb/'
+ROOT_DIR = '/home/dhagash/VIO_MSR/datasets/phenorob/mapping'
+DEPTH_SAVE = '/home/dhagash/VIO_MSR/datasets/phenorob/mapping/images_apples_right/depth/'
+COLOR_SAVE = '/home/dhagash/VIO_MSR/datasets/phenorob/mapping/images_apples_right/rgb/'
 BAGFILE = ROOT_DIR + '/' + FILENAME + '.bag'
 
 if __name__ == '__main__':
     bag = rosbag.Bag(BAGFILE)
     for i in range(2):
         if (i == 0):
-            TOPIC = '/d455_front/depth/image_rect_raw'
+            TOPIC = '/d435_right/depth/image_rect_raw'
             DESCRIPTION = 'depth_'
         else:
-            TOPIC = '/d455_front/color/image_raw'
+            TOPIC = '/d435_right/color/image_raw'
             DESCRIPTION = 'color_'
         image_topic = bag.read_messages(TOPIC)
         for k, b in enumerate(image_topic):

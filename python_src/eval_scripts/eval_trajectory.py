@@ -26,10 +26,17 @@ from utils import utils
 if __name__ == "__main__":
     # gt_traj = utils.read_file("../../../../Datasets/rgbd_dataset_freiburg1_xyz/groundtruth.txt")
 
-    cam_traj = utils.read_file("../../../ORB_SLAM2/outputs/apple_cam_traj.txt")
+    ROOT_DIR = '../../eval_data/'
 
-    keyframe_traj = utils.read_file("../../../ORB_SLAM2/outputs/apple_KeyFrameTrajectory.txt")
+    cam_traj = utils.read_file(ROOT_DIR + "rgbd_orb3/CameraTrajectory.txt")
+
+    keyframe_traj = utils.read_file(ROOT_DIR + "rgbd_orb3/KeyFrameTrajectory.txt")
     
-    plt.plot(keyframe_traj[:, 1], keyframe_traj[:, 2], 'r')
-    # plt.plot(cam_traj[:, 1], cam_traj[:, 2], 'g')
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    # plt.plot(keyframe_traj[:, 3], keyframe_traj[:, 1], 'r', label='keyframe trajectory')
+    ax.plot(cam_traj[:, 1], cam_traj[:, 2], cam_traj[:, 3], 'g', label='camera trajectory')
+    # plt.scatter(keyframe_traj[0, 3], keyframe_traj[0, 1], 50, 'r', 'x')
+    # ax.scatter(cam_traj[0, 1], cam_traj[0, 2], cam_traj[0, 3], 50, 'g', 'x')
+    plt.legend()
     plt.show()

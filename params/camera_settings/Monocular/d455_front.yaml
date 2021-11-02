@@ -3,6 +3,7 @@
 #--------------------------------------------------------------------------------------------
 # Camera Parameters. Adjust them!
 #--------------------------------------------------------------------------------------------
+Camera.type: "PinHole"
 
 # Camera calibration and distortion parameters (OpenCV) 
 Camera.fx: 381.5231018066406
@@ -15,6 +16,9 @@ Camera.k2:  0.06687477231025696
 Camera.p1: -8.671214891364798e-05
 Camera.p2: -6.639014463871717e-05
 Camera.k3: -0.021493962034583092
+
+Camera.width: 640
+Camera.height: 480
 
 # Camera frames per second 
 Camera.fps: 30.0

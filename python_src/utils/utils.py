@@ -33,3 +33,21 @@ def read_file(path: str, delimiter: str = ' ') -> (np.ndarray):
     data = np.loadtxt(path, delimiter=delimiter)
 
     return data
+
+
+def wrapTo2Pi(theta: float) -> (float):
+    """
+    Wrap around angles to the range [0, 2pi]
+    
+    Arguments
+    ---------
+    - theta: angle
+    Returns
+    -------
+    - theta: angle within range [0, 2pi]
+    """
+    while theta < 0:
+        theta += 2 * np.pi
+    while theta > 2 * np.pi:
+        theta -= 2 * np.pi
+    return theta

@@ -46,5 +46,5 @@ for i in range(1000):
     img_corners = np.zeros_like(img_bgr)
     cv2.drawKeypoints(img_bgr, keypoints, img_corners, color=(255,0,0))
 
-    display_imgs({'Fast corners': img_corners}, wait_val=100)
+    display_imgs({'Fast corners': img_corners}, wait_val=0)
 

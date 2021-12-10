@@ -14,104 +14,76 @@ import pickle
 import argparse
 
 import cv2
-import open3d as o3d
-import scipy.spatial
 import numpy as np
-import numpy.linalg as la
-
-from tqdm import tqdm
 
 import os
 import sys
-sys.path.append('..')
+sys.path.append(os.pardir)
 
 from utils.ransac_homography import *
 from utils.utils import wrapTo2Pi
 
-def process_input_data(bboxes_path: str, associations_path: str):
+def process_input_data(bboxes_path: str, associations_path: str) -> tuple[dict, list]:
+    ''' Loads the input data for further use
+
+    Arguments
+    ---------
+    - bboxes_path: Path to the pickle file containing the bounding box data for each rgb frame
+    - associations_path: Path to the txt file conatining the associations for RGB and Depth frames from the dataset
+    
+    Returns
+    -------
+    - bboxes_data: {rgb_frame_path: bboxes} a dictionary containing the bounding boxes in each rgb frame as key-value pairs
+    - rgb_frame_names: list containing filenames for all rgb frames from the associations file
+    '''
     with open(bboxes_path, "rb") as f:
         bboxes_data = pickle.load(f)
     
     with open(associations_path, 'r') as f:
-        depth_frame_names = []
         rgb_frame_names = []
 
         for line in f.readlines():
-            _, rgb_path, _, depth_path = line.rstrip("\n").split(' ')
+            _, rgb_path, _, _ = line.rstrip("\n").split(' ')
             if(os.path.basename(rgb_path) in list(bboxes_data.keys())):
-                depth_frame_names.append(depth_path)
                 rgb_frame_names.append(rgb_path)
 
-    return bboxes_data, rgb_frame_names, depth_frame_names
+    return bboxes_data, rgb_frame_names
 
-def get_depth_mask(depth_frame_shape: tuple, keypoint: np.ndarray) -> (np.ndarray):
-    '''This function get the depth mask for a pixel
+def compute_hist_2d(keypts_2d: np.ndarray, nbins: int = 8) -> (np.ndarray):
+    '''Compute histogram based on number of detections in each angular sector around current keypoint
 
-    Arguments
-    ---------
-    - depth_frame_shape: shape of the depth frame
-    - keypoint: keypoint of interest
+    Argument
+    --------
+    - keypts_2d: array of all 2d keypoints from the RGB frame of interest
+    - nbins: number of bins to compute the histogram
 
     Returns
     -------
-    - depth_mask: depth mask for a pixel
+    - hist_2d: a histogram for each feature in the RGB-D frame of interest
     '''
-    depth_mask = np.zeros(depth_frame_shape, np.uint8)
-    depth_mask[int(keypoint[1]), int(keypoint[0])] = 1
-    return depth_mask
+    hist_2d = np.zeros((keypts_2d.shape[0], nbins))
+    for i, kp in enumerate(keypts_2d):
+        angles = np.arctan2(np.delete(keypts_2d, i, 0)[:, 1] - kp[1], np.delete(keypts_2d, i, 0)[:, 0] - kp[0])
+        angles = np.array([wrapTo2Pi(-angle) for angle in angles]) * 90 / np.pi
 
+        hist_2d[i] = np.histogram(angles, bins=nbins, range=(0, 360), density=False)[0]
 
-def compute_hist_3d(keypts_3d: np.ndarray, nbins: int = 8) -> (np.ndarray):
-    hist_3d = np.zeros((keypts_3d.shape[0], nbins))
-    for i, kp in enumerate(keypts_3d):
-        rel_kps = np.delete(keypts_3d, i, 0) - kp
-        x, y, z = rel_kps[:, 0], rel_kps[:, 1], rel_kps[:, 2]
+    return hist_2d / keypts_2d.shape[0]
 
-        hist_3d[i, 0] = np.sum((x >= 0) & (y >= 0) & (z >= 0))
-        hist_3d[i, 1] = np.sum((x >= 0) & (y >= 0) & (z < 0))
-        hist_3d[i, 2] = np.sum((x >= 0) & (y < 0) & (z >= 0))
-        hist_3d[i, 3] = np.sum((x >= 0) & (y < 0) & (z < 0))
-        hist_3d[i, 4] = np.sum((x < 0) & (y >= 0) & (z >= 0))
-        hist_3d[i, 5] = np.sum((x < 0) & (y >= 0) & (z < 0))
-        hist_3d[i, 6] = np.sum((x < 0) & (y < 0) & (z >= 0))
-        hist_3d[i, 7] = np.sum((x < 0) & (y < 0) & (z < 0))
-
-    return hist_3d / keypts_3d.shape[0]
-
-def compute_descriptor(keypoints_2d: np.ndarray, hist: np.ndarray):
+def compute_descriptor(keypoints_2d: np.ndarray, hist: np.ndarray) -> (np.ndarray):
+    ''' Compute Descriptor for each 2d feature in the RGB frame
+        descriptor = [2D location, histogram]
+    '''
     descriptors = np.zeros((keypoints_2d.shape[0], 2 + hist.shape[1]))
     for i, kp in enumerate(keypoints_2d):
         descriptors[i] = np.r_[kp, hist[i]]
     return descriptors
 
-def get_keypoints(rgb_frame, depth_frame, keypts_2d):
-    keypts_3d = []
-    pcl_gen_flag = []
-
-    for keypt in keypts_2d:
-        depth_mask = get_depth_mask(depth_frame.shape, keypt)
-        rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
-            o3d.geometry.Image(rgb_frame), 
-            o3d.geometry.Image(np.multiply(depth_frame, depth_mask)), 
-            depth_scale=1000, convert_rgb_to_intensity=True)
-        pcl = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, rgb_camera_intrinsic)
-        pcl_gen_flag.append(pcl.has_points())
-        if(pcl.has_points()):
-            keypts_3d.append(np.array(pcl.points)[0])
-    
-    keypts_2d = np.array(keypts_2d)[pcl_gen_flag]
-    keypts_3d = np.array(keypts_3d)
-
-    return keypts_2d, keypts_3d
-
-
 if __name__=='__main__':
-    parser = argparse.ArgumentParser(description='''
-    This script generates custom descriptors for 3D macro keypoints
-    ''')
-    # Dataset paths
+    parser = argparse.ArgumentParser(description='''This script generates custom descriptors for 2D macro keypoints''')
+
     parser.add_argument('-b', '--bboxes_path', default='../../datasets/phenorob/images_apples_right/bboxes.pickle', type=str,
-        help='Path to the centernet object detection bounding box coordinates')
+        help='Path to the object detection bounding box coordinates')
     parser.add_argument('-a', '--associations_path', default='../../datasets/phenorob/images_apples_right/associations.txt', type=str,
         help='Path to the associations file for RGB and Depth frames')
     parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/images_apples_right/', type=str,
@@ -121,26 +93,19 @@ if __name__=='__main__':
     parser.add_argument('-s', '--save_descriptor', default=False, type=bool, help='Save computed Descriptors as .npz file')
     args = parser.parse_args()
 
-    bboxes_d, rgb_names, depth_names = process_input_data(args.bboxes_path, args.associations_path)
+    bboxes_d, rgb_names = process_input_data(args.bboxes_path, args.associations_path)
      
     num_of_frames = len(rgb_names)
-    
-    rgb_camera_intrinsic = o3d.camera.PinholeCameraIntrinsic()
-    rgb_camera_intrinsic.set_intrinsics(640, 480, 606.6, 605.4, 323.2, 247.4)
 
     for n in range(num_of_frames - 1):
         rgb_frame_1 = cv2.imread(args.data_root_path + rgb_names[n])
-        depth_frame_1 = cv2.imread(args.data_root_path + depth_names[n])
         keypts_2d_1 = np.array(bboxes_d[os.path.basename(rgb_names[n])])[:, 4:]
-        keypts_2d_1, keypts_3d_1 = get_keypoints(rgb_frame_1, depth_frame_1, keypts_2d_1)
 
         rgb_frame_2 = cv2.imread(args.data_root_path + rgb_names[n + 1])
-        depth_frame_2 = cv2.imread(args.data_root_path + depth_names[n + 1])
         keypts_2d_2 = np.array(bboxes_d[os.path.basename(rgb_names[n + 1])])[:, 4:]
-        keypts_2d_2, keypts_3d_2 = get_keypoints(rgb_frame_2, depth_frame_2, keypts_2d_2)
 
-        hist_1 = compute_hist_3d(keypts_3d_1)
-        hist_2 = compute_hist_3d(keypts_3d_2)
+        hist_1 = compute_hist_2d(keypts_2d_1)
+        hist_2 = compute_hist_2d(keypts_2d_2)
 
         descriptors_1 = compute_descriptor(keypts_2d_1, hist_1)
         descriptors_2 = compute_descriptor(keypts_2d_2, hist_2)

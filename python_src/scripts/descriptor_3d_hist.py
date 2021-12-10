@@ -17,7 +17,6 @@ import cv2
 import open3d as o3d
 from scipy.spatial import transform as tf
 import numpy as np
-import numpy.linalg as la
 
 from matplotlib import pyplot as plt
 
@@ -209,7 +208,7 @@ if __name__=='__main__':
         new_pose = np.r_[T[:-1, -1], tf.Rotation.from_matrix(T[:-1, :-1]).as_quat()]
         SE3_pose = np.vstack((SE3_pose, new_pose))
     
-        if args.visualize or args.save_descriptor:
+        if args.visualize or args.save:
             w = rgb_frame_1.shape[1]
             rgb_match_frame = np.concatenate((rgb_frame_1, rgb_frame_2), 1)
             for kp in descriptors_1:

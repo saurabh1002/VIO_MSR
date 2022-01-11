@@ -12,6 +12,7 @@
 # ==============================================================================
 import pickle
 import argparse
+from tqdm import tqdm
 
 import cv2
 import numpy as np
@@ -96,13 +97,13 @@ if __name__=='__main__':
     bboxes_d, rgb_names = process_input_data(args.bboxes_path, args.associations_path)
      
     num_of_frames = len(rgb_names)
+    skip_frames = 10
+    for n in tqdm(range(0, num_of_frames - skip_frames, skip_frames)):
+        rgb_frame_1 = cv2.cvtColor(cv2.imread(args.data_root_path + rgb_names[n]), cv2.COLOR_RGB2BGR)
+        keypts_2d_1 = np.array(bboxes_d[os.path.basename(rgb_names[n])])
 
-    for n in range(num_of_frames - 1):
-        rgb_frame_1 = cv2.imread(args.data_root_path + rgb_names[n])
-        keypts_2d_1 = np.array(bboxes_d[os.path.basename(rgb_names[n])])[:, 4:]
-
-        rgb_frame_2 = cv2.imread(args.data_root_path + rgb_names[n + 1])
-        keypts_2d_2 = np.array(bboxes_d[os.path.basename(rgb_names[n + 1])])[:, 4:]
+        rgb_frame_2 = cv2.cvtColor(cv2.imread(args.data_root_path + rgb_names[n + skip_frames]), cv2.COLOR_RGB2BGR)
+        keypts_2d_2 = np.array(bboxes_d[os.path.basename(rgb_names[n + skip_frames])])
 
         hist_1 = compute_hist_2d(keypts_2d_1)
         hist_2 = compute_hist_2d(keypts_2d_2)
@@ -137,4 +138,4 @@ if __name__=='__main__':
             cv2.destroyAllWindows()
         if args.save_descriptor:
             cv2.imwrite(
-                '../../eval_data/custom_3d_desc/{}.png'.format(n), rgb_match_frame)
+                '../../eval_data/custom_2d_desc/{}.png'.format(n), rgb_match_frame)

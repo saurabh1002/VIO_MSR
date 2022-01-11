@@ -12,6 +12,7 @@
 # ==============================================================================
 import pickle
 import argparse
+from numpy.lib.histograms import histogram
 from tqdm import tqdm
 
 import cv2
@@ -115,7 +116,21 @@ def get_keypoints(depth_frame: np.ndarray, keypts_2d: np.ndarray, rgb_camera_int
     keypts_2d = np.array(keypts_2d)[pcl_gen_flag]
     keypts_3d = np.array(keypts_3d)
 
+    # mean_x = np.mean(keypts_3d[:, 1])
+    # std_x = np.std(keypts_3d[:, 1])
+    # mean_y = np.mean(keypts_3d[:, 0])
+    # std_y = np.std(keypts_3d[:, 0])
+    # mean_z = np.mean(keypts_3d[:, 2])
+    # std_z = np.std(keypts_3d[:, 2])
+
+    # idx = np.where((mean_x - 3 * std_x < keypts_3d[:, 1]) & (keypts_3d[:, 1] < mean_x + 3 * std_x) & 
+    #                (mean_y - 3 * std_y < keypts_3d[:, 0]) & (keypts_3d[:, 0] < mean_y + 3 * std_y) & 
+    #                (mean_z - 3 * std_z < keypts_3d[:, 2]) & (keypts_3d[:, 2] < mean_z + 3 * std_z))
+    # idx = np.where((np.percentile(keypts_2d[:, 1], 20) < keypts_2d[:, 1]) & (keypts_2d[:, 1] < np.percentile(keypts_2d[:, 1], 80)))
+
     return keypts_2d, keypts_3d
+
+
 
 def compute_hist_3d(keypts_3d: np.ndarray) -> (np.ndarray):
     '''Compute histogram based on number of detections in each octant around current keypoint
@@ -128,11 +143,39 @@ def compute_hist_3d(keypts_3d: np.ndarray) -> (np.ndarray):
     -------
     - hist_3d: a histogram for each feature in the RGB-D frame of interest
     '''
-    hist_3d = np.zeros((keypts_3d.shape[0], 8))
+    hist_3d = np.zeros((keypts_3d.shape[0], 8+9+2))
     for i, kp in enumerate(keypts_3d):
         # Relative coordinates of all keypoints wrt the current keypoint of interest
         rel_kps = np.delete(keypts_3d, i, 0) - kp
+        # rel_kps = rel_kps - np.mean(rel_kps, 0)
+
+        box_dim = 0.5
+        # rel_kps = rel_kps[np.where(np.abs(rel_kps[:, 0]) < box_dim)]
+        # rel_kps = rel_kps[np.where(np.abs(rel_kps[:, 1]) < box_dim)]
+        # rel_kps = rel_kps[np.where(np.abs(rel_kps[:, 2]) < box_dim)]
+
+        C = rel_kps.T @ rel_kps
+        eig_val, eig_vec = np.linalg.eigh(C)
+        # print(eig_val)
+        # eig_vec[:, 2] = np.cross(eig_vec[:, 0], eig_vec[:, 1])
+
+        rel_kps = rel_kps @ eig_vec
+
+        # rel_kps_x = rel_kps @ eig_vec[:, 0]
+        # rel_kps_y = rel_kps @ eig_vec[:, 1]
+        # rel_kps_z = rel_kps @ eig_vec[:, 2]
+        
+        # hist_x, _ = np.histogram(rel_kps_x, 8, density=True)
+        # hist_y, _ = np.histogram(rel_kps_y, 8, density=True)
+        # hist_z, _ = np.histogram(rel_kps_z, 8, density=True)
+
+        # hist_3d[i] = np.r_[hist_x / eig_val[0], hist_y / eig_val[1], hist_z / eig_val[2]]
+        # hist_3d[i] = hist_3d[i] / np.sum(hist_3d[i])
+    # return hist_3d
         x, y, z = rel_kps[:, 0], rel_kps[:, 1], rel_kps[:, 2]
+
+
+        # x_min = np.percentile()
 
         # Compute count of keypoints in each octant
         hist_3d[i, 0] = np.sum((x >= 0) & (y >= 0) & (z >= 0))
@@ -144,7 +187,33 @@ def compute_hist_3d(keypts_3d: np.ndarray) -> (np.ndarray):
         hist_3d[i, 6] = np.sum((x < 0) & (y < 0) & (z >= 0))
         hist_3d[i, 7] = np.sum((x < 0) & (y < 0) & (z < 0))
 
-    return hist_3d / keypts_3d.shape[0]
+        hist_3d[i, :8] = hist_3d[i, :8] / np.sum(hist_3d[i, :8])
+        hist_3d[i, 8:-2] = np.abs(eig_vec.flatten())
+        hist_3d[i, -2:] = np.r_[eig_val[0] / eig_val[2], eig_val[1] / eig_val[2]]
+
+        # hist_3d[i, 0] = np.sum((x >= 0) & (y >= 0) & (z >= 0) & (y <= box_dim))
+        # hist_3d[i, 1] = np.sum((x >= 0) & (y >= 0) & (z < 0) & (y <= box_dim))
+        # hist_3d[i, 2] = np.sum((x >= 0) & (y < 0) & (z >= 0) & (y >= -box_dim))
+        # hist_3d[i, 3] = np.sum((x >= 0) & (y < 0) & (z < 0) & (y >= -box_dim))
+        # hist_3d[i, 4] = np.sum((x < 0) & (y >= 0) & (z >= 0) & (y <= box_dim))
+        # hist_3d[i, 5] = np.sum((x < 0) & (y >= 0) & (z < 0) & (y <= box_dim))
+        # hist_3d[i, 6] = np.sum((x < 0) & (y < 0) & (z >= 0) & (y >= -box_dim))
+        # hist_3d[i, 7] = np.sum((x < 0) & (y < 0) & (z < 0) & (y >= -box_dim))
+
+        # hist_3d[i, :8] = hist_3d[i, :8] / np.sum(hist_3d[i, :8])
+
+        # hist_3d[i, 0] = np.sum((x >= 0) & (y >= 0) & (z >= 0) & (x <= box_dim) & (y <= box_dim) & (z <= box_dim))
+        # hist_3d[i, 1] = np.sum((x >= 0) & (y >= 0) & (z < 0) & (x <= box_dim) & (y <= box_dim) & (z >= -box_dim))
+        # hist_3d[i, 2] = np.sum((x >= 0) & (y < 0) & (z >= 0) & (x <= box_dim) & (y >= -box_dim) & (z <= box_dim))
+        # hist_3d[i, 3] = np.sum((x >= 0) & (y < 0) & (z < 0) & (x <= box_dim) & (y >= -box_dim) & (z >= -box_dim))
+        # hist_3d[i, 4] = np.sum((x < 0) & (y >= 0) & (z >= 0) & (x >= -box_dim) & (y <= box_dim) & (z <= box_dim))
+        # hist_3d[i, 5] = np.sum((x < 0) & (y >= 0) & (z < 0) & (x >= -box_dim) & (y <= box_dim) & (z >= -box_dim))
+        # hist_3d[i, 6] = np.sum((x < 0) & (y < 0) & (z >= 0) & (x >= -box_dim) & (y >= -box_dim) & (z <= box_dim))
+        # hist_3d[i, 7] = np.sum((x < 0) & (y < 0) & (z < 0) & (x >= -box_dim) & (y >= -box_dim) & (z >= -box_dim))
+
+        # hist_3d[i, :8] = hist_3d[i, :8] / np.sum(hist_3d[i, :8])
+    print(hist_3d)
+    return hist_3d
 
 def compute_descriptor(keypts_2d: np.ndarray, keypoints_3d: np.ndarray, hist: np.ndarray) -> (np.ndarray):
     ''' Compute Descriptor for each 3d feature in the RGB-D frame
@@ -159,18 +228,18 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description='''This script generates custom descriptors for 3D macro keypoints''')
 
     # Dataset paths
-    parser.add_argument('-b', '--bboxes_path', default='../../datasets/phenorob/images_apples/detection.pickle', type=str,
+    parser.add_argument('-b', '--bboxes_path', default='../../datasets/phenorob/images_apples_right/bboxes.pickle', type=str,
         help='Path to the centernet object detection bounding box coordinates')
-    parser.add_argument('-a', '--associations_path', default='../../datasets/phenorob/images_apples/associations.txt', type=str,
+    parser.add_argument('-a', '--associations_path', default='../../datasets/phenorob/images_apples_right/associations.txt', type=str,
         help='Path to the associations file for RGB and Depth frames')
-    parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/images_apples/', type=str,
+    parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/images_apples_right/', type=str,
         help='Path to the root directory of the dataset')
 
     parser.add_argument('-v', '--visualize', default=False, type=bool, help='Visualize results')
     parser.add_argument('-s', '--save', default=False, type=bool, help='Save flag')
     args = parser.parse_args()
 
-    bboxes_d, rgb_names, depth_names = process_input_data(args.bboxes_path, args.data_root_path + 'associations.txt')
+    bboxes_d, rgb_names, depth_names = process_input_data(args.bboxes_path, args.associations_path)
     num_of_frames = len(rgb_names)
 
     rgb_camera_intrinsic = o3d.camera.PinholeCameraIntrinsic()
@@ -180,7 +249,7 @@ if __name__=='__main__':
     SE3_pose = np.array([0, 0, 0, 0, 0, 0, 1])
     T = np.eye(4)
 
-    skip_frames = 1
+    skip_frames = 10
     for n in tqdm(range(0, num_of_frames - skip_frames, skip_frames)):
         # n th frame
         rgb_frame_1 = cv2.cvtColor(cv2.imread(args.data_root_path + rgb_names[n]), cv2.COLOR_RGB2BGR)
@@ -195,15 +264,14 @@ if __name__=='__main__':
         keypts_2d_2 = np.array(bboxes_d[os.path.basename(rgb_names[n + skip_frames])])
         keypts_2d_2, keypts_3d_2 = get_keypoints(depth_frame_2, keypts_2d_2, rgb_camera_intrinsic)
         pcl_2 = o3d.geometry.PointCloud.create_from_depth_image(o3d.geometry.Image(depth_frame_2), rgb_camera_intrinsic, depth_scale=1000, depth_trunc=3)
-        
+
         hist_1 = compute_hist_3d(keypts_3d_1)
         hist_2 = compute_hist_3d(keypts_3d_2)
 
         descriptors_1 = compute_descriptor(keypts_2d_1, keypts_3d_1, hist_1)
         descriptors_2 = compute_descriptor(keypts_2d_2, keypts_3d_2, hist_2)
 
-        # M = compute_matches(descriptors_1[:, 5:], descriptors_2[:, 5:], rgb_frame_1.shape[0], rgb_frame_1.shape[1])
-        M = nn_match_two_way(descriptors_1[:, 5:].T, descriptors_2[:, 5:].T, 0.7)
+        M = compute_matches(descriptors_1[:, 5:], descriptors_2[:, 5:], rgb_frame_1.shape[0], rgb_frame_1.shape[1])
 
         P1_2d = descriptors_1[:, :2].astype(int)
         P2_2d = descriptors_2[:, :2].astype(int)
@@ -214,22 +282,17 @@ if __name__=='__main__':
         if(M.shape[0] > 0):
             H, M = compute_homography_ransac(P1_2d, P2_2d, M)
 
-        T_new = icp_known_corresp(P1_3d.T, P2_3d.T, M[:, 0], M[:, 1])
+        # corr_ind = np.array([[np.where((np.array(pcl_2.points) == tuple(P2_3d[M[i, 1]])).all(axis=1))[0][0], 
+        #     np.where((np.array(pcl_1.points) == tuple(P1_3d[M[i, 0]])).all(axis=1))[0][0]] for i in range(len(M))])
 
-        corr_ind = np.array([[np.where((np.array(pcl_2.points) == tuple(P2_3d[M[i, 1]])).all(axis=1))[0][0], 
-            np.where((np.array(pcl_1.points) == tuple(P1_3d[M[i, 0]])).all(axis=1))[0][0]] for i in range(len(M))])
-        res = o3d.pipelines.registration.registration_ransac_based_on_correspondence(pcl_2, pcl_1, o3d.utility.Vector2iVector(corr_ind), 0.05)
+        # T_new = icp_known_corresp(P1_3d.T, P2_3d.T, M[:, 0], M[:, 1])
+        # res = o3d.pipelines.registration.registration_icp(pcl_2, pcl_1, 0.02)
 
-        res = o3d.pipelines.registration.registration_icp(pcl_2, pcl_1, 0.025, res.transformation)
-        
-        T_new = res.transformation
-
+        # T = T @ T_new
         # o3d.visualization.draw_geometries([pcl_1])
 
-        T = T @ T_new
-
-        new_pose = np.r_[T[:-1, -1], tf.Rotation.from_matrix(T[:-1, :-1]).as_quat()]
-        SE3_pose = np.vstack((SE3_pose, new_pose))
+        # new_pose = np.r_[T[:-1, -1], tf.Rotation.from_matrix(T[:-1, :-1]).as_quat()]
+        # SE3_pose = np.vstack((SE3_pose, new_pose))
     
         if args.visualize or args.save:
             w = rgb_frame_1.shape[1]
@@ -247,28 +310,28 @@ if __name__=='__main__':
             if args.visualize:
                 cv2.namedWindow('matches')
                 cv2.imshow('matches', rgb_match_frame)
-                cv2.waitKey(250)
+                cv2.waitKey(0)
             if args.save:
                 cv2.imwrite(
-                    '../../eval_data/custom_3d_desc/{}.png'.format(int(n/skip_frames)), rgb_match_frame)
+                    '../../eval_data/custom_3d_desc/{}.png'.format(n/skip_frames), rgb_match_frame)
     
     cv2.destroyAllWindows()
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
-    ax1.set_title('XY pose')
-    ax1.set_xlabel('X [m]')
-    ax1.set_ylabel('Y [m]')
-    ax1.axis('equal')
-    ax1.plot(SE3_pose[:, 0], SE3_pose[:, 1])
+    # fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
+    # ax1.set_title('XY pose')
+    # ax1.set_xlabel('X [m]')
+    # ax1.set_ylabel('Y [m]')
+    # ax1.axis('equal')
+    # ax1.plot(SE3_pose[:, 0], SE3_pose[:, 1])
     
-    ax2.set_title('YZ pose')
-    ax2.set_xlabel('Y [m]')
-    ax2.set_ylabel('Z [m]')
-    ax2.axis('equal')
-    ax2.plot(SE3_pose[:, 1], SE3_pose[:, 2])
+    # ax2.set_title('YZ pose')
+    # ax2.set_xlabel('Y [m]')
+    # ax2.set_ylabel('Z [m]')
+    # ax2.axis('equal')
+    # ax2.plot(SE3_pose[:, 1], SE3_pose[:, 2])
     
-    ax3.set_title('XZ pose')
-    ax3.set_xlabel('X [m]')
-    ax3.set_ylabel('Z [m]')
-    ax3.axis('equal')
-    ax3.plot(SE3_pose[:, 0], SE3_pose[:, 2])
-    plt.show()
+    # ax3.set_title('XZ pose')
+    # ax3.set_xlabel('X [m]')
+    # ax3.set_ylabel('Z [m]')
+    # ax3.axis('equal')
+    # ax3.plot(SE3_pose[:, 0], SE3_pose[:, 2])
+    # plt.show()

@@ -179,12 +179,12 @@ if __name__=='__main__':
     for n in range(num_of_frames - 1):
         rgb_frame_1 = cv2.imread(args.data_root_path + rgb_names[n])
         depth_frame_1 = cv2.imread(args.data_root_path + depth_names[n], cv2.CV_16UC1)
-        keypts_2d_1 = np.array(bboxes_d[os.path.basename(rgb_names[n])])[:, 4:]
+        keypts_2d_1 = np.array(bboxes_d[os.path.basename(rgb_names[n])])
         keypts_2d_1, keypts_3d_1 = get_keypoints(depth_frame_1, keypts_2d_1, rgb_camera_intrinsic)
 
         rgb_frame_2 = cv2.imread(args.data_root_path + rgb_names[n + 1])
         depth_frame_2 = cv2.imread(args.data_root_path + depth_names[n + 1], cv2.CV_16UC1)
-        keypts_2d_2 = np.array(bboxes_d[os.path.basename(rgb_names[n + 1])])[:, 4:]
+        keypts_2d_2 = np.array(bboxes_d[os.path.basename(rgb_names[n + 1])])
         keypts_2d_2, keypts_3d_2 = get_keypoints(depth_frame_2, keypts_2d_2, rgb_camera_intrinsic)
 
         knn_id_1 = find_k_nearest(keypts_3d_1, args.k)

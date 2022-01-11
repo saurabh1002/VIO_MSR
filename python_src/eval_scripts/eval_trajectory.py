@@ -28,12 +28,13 @@ if __name__ == "__main__":
 
     ROOT_DIR = '../../eval_data/'
 
-    cam_traj = utils.read_file(ROOT_DIR + "rgbd_orb3/CameraTrajectory.txt")
+    cam_traj = utils.read_file(ROOT_DIR + "rgbd_orb3/images_strawberries/CameraTrajectory.txt")
 
-    keyframe_traj = utils.read_file(ROOT_DIR + "rgbd_orb3/KeyFrameTrajectory.txt")
+    keyframe_traj = utils.read_file(ROOT_DIR + "rgbd_orb3/images_strawberries/KeyFrameTrajectory.txt")
     
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+    ax.set_box_aspect(aspect = (0.1,0.1,1))
     # plt.plot(keyframe_traj[:, 3], keyframe_traj[:, 1], 'r', label='keyframe trajectory')
     ax.plot(cam_traj[:, 1], cam_traj[:, 2], cam_traj[:, 3], 'g', label='camera trajectory')
     # plt.scatter(keyframe_traj[0, 3], keyframe_traj[0, 1], 50, 'r', 'x')

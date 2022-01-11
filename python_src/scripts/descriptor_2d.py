@@ -110,13 +110,13 @@ if __name__=='__main__':
     bboxes_d, rgb_names = process_input_data(args.bboxes_path, args.associations_path)
 
     num_of_frames = len(rgb_names)
-
-    for n in range(num_of_frames - 1):
+    skip_frames = 1
+    for n in tqdm(range(0, num_of_frames - skip_frames, skip_frames)):
         rgb_frame_1 = cv2.cvtColor(cv2.imread(args.data_root_path + rgb_names[n]), cv2.COLOR_RGB2BGR)
-        keypts_2d_1 = np.array(bboxes_d[os.path.basename(rgb_names[n])])[:, 4:]
+        keypts_2d_1 = np.array(bboxes_d[os.path.basename(rgb_names[n])])
 
-        rgb_frame_2 = cv2.cvtColor(cv2.imread(args.data_root_path + rgb_names[n + 1]), cv2.COLOR_RGB2BGR)
-        keypts_2d_2 = np.array(bboxes_d[os.path.basename(rgb_names[n + 1])])[:, 4:]
+        rgb_frame_2 = cv2.cvtColor(cv2.imread(args.data_root_path + rgb_names[n + skip_frames]), cv2.COLOR_RGB2BGR)
+        keypts_2d_2 = np.array(bboxes_d[os.path.basename(rgb_names[n + skip_frames])])
 
         knn_ids_1 = find_k_nearest(keypts_2d_1, args.k)
         knn_ids_2 = find_k_nearest(keypts_2d_2, args.k)
@@ -124,7 +124,7 @@ if __name__=='__main__':
         desc_1 = np.zeros((keypts_2d_1.shape[0], args.k * 2))
         desc_2 = np.zeros((keypts_2d_2.shape[0], args.k * 2))
 
-        for i in tqdm(range(keypts_2d_1.shape[0])):  
+        for i in range(keypts_2d_1.shape[0]):  
             desc_1[i], sort_idx = compute_descriptor(keypts_2d_1[i], keypts_2d_1[knn_ids_1[i]])
             # if args.visualize:
             #     image = rgb_names[n]
@@ -149,10 +149,10 @@ if __name__=='__main__':
             #         cv2.waitKey(delay)
             # cv2.destroyAllWindows()
 
-        for i in tqdm(range(keypts_2d_2.shape[0])):  
+        for i in range(keypts_2d_2.shape[0]):  
             desc_2[i], _ = compute_descriptor(keypts_2d_2[i], keypts_2d_2[knn_ids_2[i]])
 
-        cv2.namedWindow('matches', cv2.WINDOW_NORMAL)
+        # cv2.namedWindow('matches', cv2.WINDOW_NORMAL)
 
         M = compute_matches(desc_1[:, 2:], desc_2[:, 2:], rgb_frame_1.shape[0], rgb_frame_1.shape[1])
         P1 = desc_1[:, :2].astype(int)
@@ -180,5 +180,5 @@ if __name__=='__main__':
                      (right_x, right_y), (0, 255, 255), 2)
         cv2.imshow('matches', img_match)
         # cv2.imwrite(
-        #     '../../eval_data/custom_2d_desc/{}.png'.format(i), img_match)
+        #     '../../eval_data/custom_2d_desc/{}.png'.format(n), img_match)
         cv2.waitKey(0)

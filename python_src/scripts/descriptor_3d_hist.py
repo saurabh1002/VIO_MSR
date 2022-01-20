@@ -161,7 +161,7 @@ if __name__=='__main__':
     # Dataset paths
     parser.add_argument('-b', '--bboxes_path', default='../../datasets/phenorob/images_apples/detection.pickle', type=str,
         help='Path to the centernet object detection bounding box coordinates')
-    parser.add_argument('-a', '--associations_path', default='../../datasets/phenorob/images_apples/associations.txt', type=str,
+    parser.add_argument('-a', '--associations_path', default='../../datasets/phenorob/images_apples/associations_rgbd.txt', type=str,
         help='Path to the associations file for RGB and Depth frames')
     parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/images_apples/', type=str,
         help='Path to the root directory of the dataset')
@@ -170,12 +170,15 @@ if __name__=='__main__':
     parser.add_argument('-s', '--save', default=False, type=bool, help='Save flag')
     args = parser.parse_args()
 
-    bboxes_d, rgb_names, depth_names = process_input_data(args.bboxes_path, args.data_root_path + 'associations.txt')
+    bboxes_d, rgb_names, depth_names = process_input_data(args.bboxes_path, args.data_root_path + 'associations_rgbd.txt')
     num_of_frames = len(rgb_names)
 
     rgb_camera_intrinsic = o3d.camera.PinholeCameraIntrinsic()
-    rgb_camera_intrinsic.set_intrinsics(640, 480, 606.6, 605.4, 323.2, 247.4)
-
+    if args.data_root_path == "../../datasets/phenorob/images_apples_right/":
+        rgb_camera_intrinsic.set_intrinsics(640, 480, 606.6, 605.4, 323.2, 247.4)
+    elif args.data_root_path == '../../datasets/phenorob/images_apples/':
+        rgb_camera_intrinsic.set_intrinsics(640, 480, 381.5, 381.2, 315.5, 237.8)
+    
     # [x, y, z, qx, qy, qz, qw]
     SE3_pose = np.array([0, 0, 0, 0, 0, 0, 1])
     T = np.eye(4)

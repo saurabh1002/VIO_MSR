@@ -26,18 +26,32 @@ from utils import utils
 if __name__ == "__main__":
     # gt_traj = utils.read_file("../../../../Datasets/rgbd_dataset_freiburg1_xyz/groundtruth.txt")
 
-    ROOT_DIR = '../../eval_data/'
+    ROOT_DIR = '../../results/'
 
-    cam_traj = utils.read_file(ROOT_DIR + "rgbd_orb3/images_strawberries/CameraTrajectory.txt")
-
-    keyframe_traj = utils.read_file(ROOT_DIR + "rgbd_orb3/images_strawberries/KeyFrameTrajectory.txt")
+    cam_traj = utils.read_file(ROOT_DIR + "poses_model_to_frame.txt")
     
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_box_aspect(aspect = (0.1,0.1,1))
-    # plt.plot(keyframe_traj[:, 3], keyframe_traj[:, 1], 'r', label='keyframe trajectory')
-    ax.plot(cam_traj[:, 1], cam_traj[:, 2], cam_traj[:, 3], 'g', label='camera trajectory')
-    # plt.scatter(keyframe_traj[0, 3], keyframe_traj[0, 1], 50, 'r', 'x')
-    # ax.scatter(cam_traj[0, 1], cam_traj[0, 2], cam_traj[0, 3], 50, 'g', 'x')
-    plt.legend()
+    ax = fig.add_subplot(311)
+    ax.set_title("XY - plane")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.plot(cam_traj[0, 1], cam_traj[0, 2], 'rx', label='Starting Point')
+    ax.plot(cam_traj[:, 1], cam_traj[:, 2], 'g', label='Trajectory')
+    ax.legend()
+
+    ax = fig.add_subplot(312)
+    ax.set_title("XZ - plane")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Z")
+    ax.plot(cam_traj[0, 1], cam_traj[0, 3], 'rx', label='Starting Point')
+    ax.plot(cam_traj[:, 1], cam_traj[:, 3], 'g', label='Trajectory')
+    ax.legend()
+
+    ax = fig.add_subplot(313)
+    ax.set_title("YZ - plane")
+    ax.set_xlabel("Y")
+    ax.set_ylabel("Z")
+    ax.plot(cam_traj[0, 2], cam_traj[0, 3], 'rx', label='Starting Point')
+    ax.plot(cam_traj[:, 2], cam_traj[:, 3], 'g', label='Trajectory')
+    ax.legend()
     plt.show()

@@ -15,15 +15,11 @@ import argparse
 from tqdm import tqdm
 
 import cv2
-import open3d as o3d
-from scipy.spatial import transform as tf
 import numpy as np
-
 from matplotlib import pyplot as plt
 
 import os
 import sys
-import copy
 sys.path.append(os.pardir)
 
 from utils.ransac_homography import *
@@ -115,7 +111,7 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description='''This script matches descriptors from the superpoint algorithm''')
 
     # Dataset paths
-    parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/images_apples/', type=str,
+    parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/front/apples_big_2021-10-14-14-51-08_0/', type=str,
         help='Path to the root directory of the dataset')
 
     parser.add_argument('-v', '--visualize', default=False, type=bool, help='Visualize results')
@@ -124,12 +120,12 @@ if __name__=='__main__':
 
     points_all, descriptors_all = process_superpoint_feature_descriptors(args.data_root_path + 'superpoint/')
 
-    with open(args.data_root_path + 'associations.txt', 'r') as f:
+    with open(args.data_root_path + 'associations_rgbd.txt', 'r') as f:
         rgb_frame_names = []
         for line in f.readlines():
             _, rgb_path, _, _ = line.rstrip("\n").split(' ')
             rgb_frame_names.append(rgb_path)
-
+    
     num_of_frames = len(rgb_frame_names)
 
     skip_frames = 10
@@ -148,26 +144,28 @@ if __name__=='__main__':
         # if M.shape[0] > 0:
         #     H, M = compute_homography_ransac(points_1, points_2, M)
 
-        if args.visualize or args.save:
+        if args.visualize or args.save:            
             w = rgb_frame_1.shape[1]
             rgb_match_frame = np.concatenate((rgb_frame_1, rgb_frame_2), 1)
             for kp in points_1:
-                cv2.circle(rgb_match_frame, (int(kp[0]), int(kp[1])), 2, (255, 0, 0), -1)
+                cv2.circle(rgb_match_frame, (int(kp[0]), int(kp[1])), 3, (255, 0, 0), -1)
 
             for kp in points_2:
                 cv2.circle(rgb_match_frame, (int(kp[0]) + w,
-                        int(kp[1])), 2, (0, 0, 255), -1)
-
-
-            for kp_l, kp_r in zip(points_1[M[:, 0]].astype(int), points_2[M[:, 1]].astype(int)):
+                        int(kp[1])), 3, (0, 0, 255), -1)
+            output_frame = np.copy(rgb_match_frame)
+        
+            for kp_l, kp_r in zip(points_1[M[:50, 0]].astype(int), points_2[M[:50, 1]].astype(int)):
                 cv2.line(rgb_match_frame, (kp_l[0], kp_l[1]), (kp_r[0] + w, kp_r[1]), (0, 255, 255), 2)
-
+            output_frame = np.concatenate((output_frame, rgb_match_frame), 0)
+            for kp_l, kp_r in zip(points_1[M[50:, 0]].astype(int), points_2[M[50:, 1]].astype(int)):
+                cv2.line(rgb_match_frame, (kp_l[0], kp_l[1]), (kp_r[0] + w, kp_r[1]), (0, 255, 255), 2)
+            output_frame = np.concatenate((output_frame, rgb_match_frame), 0)
             if args.visualize:
-                cv2.namedWindow('matches')
-                cv2.imshow('matches', rgb_match_frame)
-                cv2.waitKey(0)
+                cv2.imshow("output", output_frame)
+
             if args.save:
                 cv2.imwrite(
-                    '../../eval_data/superpoint/{}.png'.format(int(n/skip_frames)), rgb_match_frame)
+                    '../../eval_data/front/apples_big_2021-10-14-14-51-08_0/superpoint/{}.png'.format(int(n/skip_frames)), output_frame)
     
     cv2.destroyAllWindows()

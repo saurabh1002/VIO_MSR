@@ -44,7 +44,7 @@ parser = argparse.ArgumentParser(description='''This script generates custom des
 # Dataset paths
 parser.add_argument('-b', '--bboxes_path', default='../../datasets/phenorob/images_apples_right/detection.pickle', type=str,
     help='Path to the centernet object detection bounding box coordinates')
-parser.add_argument('-a', '--associations_path', default='../../datasets/phenorob/images_apples_right/associations.txt', type=str,
+parser.add_argument('-a', '--associations_path', default='../../datasets/phenorob/images_apples_right/associations_rgbd.txt', type=str,
     help='Path to the associations file for RGB and Depth frames')
 parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/images_apples_right/', type=str,
     help='Path to the root directory of the dataset')
@@ -57,7 +57,11 @@ bboxes_d, rgb_names, depth_names = process_input_data(args.bboxes_path, args.ass
 num_of_frames = len(rgb_names)
 
 rgb_camera_intrinsic = o3d.camera.PinholeCameraIntrinsic()
-rgb_camera_intrinsic.set_intrinsics(640, 480, 606.6, 605.4, 323.2, 247.4)
+if args.data_root_path == "../../datasets/phenorob/images_apples_right/":
+    rgb_camera_intrinsic.set_intrinsics(640, 480, 606.6, 605.4, 323.2, 247.4)
+elif args.data_root_path == '../../datasets/phenorob/images_apples/':
+    rgb_camera_intrinsic.set_intrinsics(640, 480, 381.5, 381.2, 315.5, 237.8)
+    
 
 skip_frames = 10
 for n in tqdm(range(0, num_of_frames - skip_frames, skip_frames)):

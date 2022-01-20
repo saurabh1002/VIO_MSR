@@ -85,7 +85,7 @@ if __name__=='__main__':
 
     parser.add_argument('-b', '--bboxes_path', default='../../datasets/phenorob/images_apples_right/bboxes.pickle', type=str,
         help='Path to the object detection bounding box coordinates')
-    parser.add_argument('-a', '--associations_path', default='../../datasets/phenorob/images_apples_right/associations.txt', type=str,
+    parser.add_argument('-a', '--associations_path', default='../../datasets/phenorob/images_apples_right/associations_rgbd.txt', type=str,
         help='Path to the associations file for RGB and Depth frames')
     parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/images_apples_right/', type=str,
         help='Path to the root directory of the dataset')

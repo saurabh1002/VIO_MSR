@@ -42,7 +42,6 @@ def getRnt(points_1: np.ndarray, points_2: np.ndarray, camera_intrinsics: np.nda
                                    method=method, 
                                    prob=prob, 
                                    threshold=threshold)
-    # print(points_1.shape)
     condition = mask == 1
     condition = condition.reshape((points_1.shape[0],))
     
@@ -50,7 +49,7 @@ def getRnt(points_1: np.ndarray, points_2: np.ndarray, camera_intrinsics: np.nda
    
     return R,t.reshape(3,)
 
-def getMatches(data_img1: dict, data_img2: dict,threshold = 0.3):
+def getMatches(data_img1: dict, data_img2: dict,threshold = 0.25):
     
     points_1 = data_img1['points'][:,:2]
     points_2 = data_img2['points'][:,:2]
@@ -130,7 +129,7 @@ if __name__ == "__main__":
             )
             t_abs = result.transformation[:-1,-1]
             rel_scale = np.linalg.norm(t_abs) / np.linalg.norm(t)
-
+            print(f"Transformation Matrix ICP\n{result.transformation}")
             init = False
 
         
@@ -144,10 +143,7 @@ if __name__ == "__main__":
         else:
             trans_init[:-1,:-1] = R
             trans_init[:-1,-1] = (rel_scale * t)
-            current_pcd = current_pcd +  source_pcd.transform(trans_init)
 
-    
-            o3d.visualization.draw_geometries([target_pcd,source_pcd.transform(trans_init)])
 
 
         

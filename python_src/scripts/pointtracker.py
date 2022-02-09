@@ -133,8 +133,8 @@ class PointTracker(object):
         matches = self.nn_match_two_way(self.last_desc, desc, self.nn_thresh)
         for match in matches.T:
             # Add a new point to it's matched track.
-            id1 = int(match[0]) + offsets[-2]
-            id2 = int(match[1]) + offsets[-1]
+            id1 = int(match[0])
+            id2 = int(match[1])
             found = np.argwhere(self.tracks[:, -2] == id1)
             if found.shape[0] > 0:
                 matched[int(match[1])] = True
@@ -151,8 +151,9 @@ class PointTracker(object):
                     frac = 1. / float(track_len)
                     self.tracks[row, 1] = (
                         1.-frac)*self.tracks[row, 1] + frac*match[2]
+                    
         # Add unmatched tracks.
-        new_ids = np.arange(pts.shape[1]) + offsets[-1]
+        new_ids = np.arange(pts.shape[1])
         new_ids = new_ids[~matched]
         new_tracks = -1*np.ones((new_ids.shape[0], self.maxl + 2))
         new_tracks[:, -1] = new_ids
@@ -208,14 +209,18 @@ class PointTracker(object):
                     continue
                 offset1 = offsets[i]
                 offset2 = offsets[i+1]
-                idx1 = int(track[i+2]-offset1)
-                idx2 = int(track[i+3]-offset2)
+                idx1 = int(track[i+2])
+                idx2 = int(track[i+3])
                 pt1 = pts_mem[i][:2, idx1]
                 pt2 = pts_mem[i+1][:2, idx2]
                 p1 = (int(round(pt1[0])), int(round(pt1[1])))
                 p2 = (int(round(pt2[0])), int(round(pt2[1])))
-                cv2.line(out, p1, p2, clr, thickness=18, lineType=16)
+                cv2.line(out, p1, p2, clr, thickness=3, lineType=16)
                 # Draw end points of each track.
                 if i == N-2:
                     clr2 = (255, 0, 0)
                     cv2.circle(out, p2, stroke, clr2, -1, lineType=16)
+        
+        # cv2.imshow('track',out)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()

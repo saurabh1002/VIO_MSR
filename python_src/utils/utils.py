@@ -51,3 +51,9 @@ def wrapTo2Pi(theta: float) -> (float):
     while theta > 2 * np.pi:
         theta -= 2 * np.pi
     return theta
+
+def toHomogenous(points: np.ndarray):
+    return np.hstack((points, np.ones((points.shape[0], 1))))
+
+def toEuclidean(points: np.ndarray):
+    return (points / points[:, -1].reshape(-1, 1))[:, :-1]

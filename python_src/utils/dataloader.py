@@ -12,6 +12,8 @@ import numpy as np
 import open3d as o3d
 import pickle
 import cv2
+import os
+
 
 
 class DatasetPCL:
@@ -100,21 +102,42 @@ class DatasetGroundTruth:
 
 class DatasetOdometry:
 
+   
+
     def __init__(self, datadir):
         self.data_root = datadir
         self.rgb_frame_names = []
         self.depth_frame_names = []
         self.timestamps = []
+        
+
         with open(self.data_root + 'associations_rgbd.txt', 'r') as f:
             for line in f.readlines():
+               
                 timestamp, rgb_path, _, depth_path = line.rstrip("\n").split(' ')
+                
                 self.rgb_frame_names.append(rgb_path)
                 self.depth_frame_names.append(depth_path)
                 self.timestamps.append(timestamp)
-        with open(self.data_root + 'superpoint/' + 'points.pickle', "rb") as f:
-            self.points_all = pickle.load(f)
-        with open(self.data_root + 'superpoint/' + 'descriptors.pickle', "rb") as f:
-            self.descriptors_all = pickle.load(f)
+               
+
+       
+            self.points_all, self.descriptors_all = self.process_superpoint_feature_descriptors(self.data_root + "superpoint/")
+        
+      
+
+    
+    def process_superpoint_feature_descriptors(self, superpoint_path: str) -> tuple[dict, dict]:
+
+        with open(superpoint_path + 'points.pickle', "rb") as f:
+            points_all = pickle.load(f)
+        with open(superpoint_path + 'descriptors.pickle', "rb") as f:
+            descriptors_all = pickle.load(f)
+
+        
+        return points_all, descriptors_all
+
+    
 
     def __len__(self):
         return len(self.rgb_frame_names)
@@ -123,10 +146,76 @@ class DatasetOdometry:
 
         rgb_frame = cv2.imread(self.data_root + self.rgb_frame_names[idx])
         depth_frame = cv2.imread(self.data_root + self.depth_frame_names[idx],cv2.CV_16UC1)
-        points = self.points_all[self.rgb_frame_names[idx].split(
-            '/')[1]]
+        points = self.points_all[self.rgb_frame_names[idx].split('/')[1]]
         descriptor = self.descriptors_all[self.rgb_frame_names[idx].split('/')[1]]
-        timestamp = self.timestamps[idx]
+        timestamp = float(self.timestamps[idx])
+        sample = {'rgb': rgb_frame, 'depth': depth_frame,
+                  'points': points, 'desc': descriptor,'timestamp':timestamp}
+
+        return sample
+
+
+class DatasetOdometryAll:
+
+   
+
+    def __init__(self, datadir):
+        self.data_root = datadir
+        self.rgb_frame_names = []
+        self.depth_frame_names = []
+        self.timestamps = []
+        self.folder_names = []
+        
+
+        with open(self.data_root + 'associations_rgbd.txt', 'r') as f:
+            for line in f.readlines():
+               
+                timestamp, rgb_path, _, depth_path = line.rstrip("\n").split(' ')
+                
+                self.rgb_frame_names.append(rgb_path[3:])
+                self.depth_frame_names.append(depth_path[3:])
+                self.timestamps.append(timestamp)
+                name = rgb_path.split("/")[1]
+                if name not in self.folder_names:
+                    self.folder_names.append(name)
+                else:
+                    continue
+
+       
+            self.points_all = {}
+            self.descriptors_all = {}
+            self.root_name = os.path.dirname(os.path.abspath(self.data_root))
+            
+            for name in self.folder_names:
+                superpoint_path = os.path.join(self.root_name,name,"superpoint/")
+                points, descriptors = self.process_superpoint_feature_descriptors(superpoint_path)
+                self.points_all = self.points_all | points
+                self.descriptors_all = self.descriptors_all | descriptors
+                
+
+    
+    def process_superpoint_feature_descriptors(self, superpoint_path: str) -> tuple[dict, dict]:
+
+        with open(superpoint_path + 'points.pickle', "rb") as f:
+            points_all = pickle.load(f)
+        with open(superpoint_path + 'descriptors.pickle', "rb") as f:
+            descriptors_all = pickle.load(f)
+
+        
+        return points_all, descriptors_all
+
+    
+
+    def __len__(self):
+        return len(self.rgb_frame_names)
+
+    def __getitem__(self, idx):
+       
+        rgb_frame = cv2.imread(self.root_name + "/" + self.rgb_frame_names[idx])
+        depth_frame = cv2.imread(self.root_name + "/" + self.depth_frame_names[idx],cv2.CV_16UC1)
+        points = self.points_all[self.rgb_frame_names[idx].split('/')[-1]]
+        descriptor = self.descriptors_all[self.rgb_frame_names[idx].split('/')[-1]]
+        timestamp = float(self.timestamps[idx])
         sample = {'rgb': rgb_frame, 'depth': depth_frame,
                   'points': points, 'desc': descriptor,'timestamp':timestamp}
 

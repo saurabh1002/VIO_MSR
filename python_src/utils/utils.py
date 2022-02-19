@@ -53,11 +53,15 @@ def wrapTo2Pi(theta: float) -> (float):
         theta -= 2 * np.pi
     return theta
 
+def toHomogenous(points: np.ndarray):
+    return np.hstack((points, np.ones((points.shape[0], 1))))
 
+def toEuclidean(points: np.ndarray):
+    return (points / points[:, -1].reshape(-1, 1))[:, :-1]
 #Create RGBD Image
 #Create PointCLoud
 
-def create_rgbdimg(rgb_img: np.ndarray, depth_img: np.ndarray,depth_scale = 1000, depth_trunc= 5.0, convert_rgb_to_intensity = False):
+def create_rgbdimg(rgb_img: np.ndarray, depth_img: np.ndarray,depth_scale = 1000, depth_trunc= 10.0, convert_rgb_to_intensity = False):
 
     rgb_o3d = o3d.geometry.Image(rgb_img)
     depth_o3d = o3d.geometry.Image(depth_img)

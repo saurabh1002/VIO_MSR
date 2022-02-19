@@ -248,7 +248,7 @@ if __name__ == "__main__":
     if args.plot:
         import matplotlib
 
-        matplotlib.use("Agg")
+        # matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         import matplotlib.pylab as pylab
         from matplotlib.patches import Ellipse
@@ -268,14 +268,15 @@ if __name__ == "__main__":
         )
 
         label = "difference"
-        for (a, b), (x1, y1, z1), (x2, y2, z2) in zip(
-            matches, first_xyz.transpose().A, second_xyz_aligned.transpose().A
-        ):
-            ax.plot([x1, x2], [y1, y2], "-", color="red", label=label)
-            label = ""
+        # for (a, b), (x1, y1, z1), (x2, y2, z2) in zip(
+        #     matches, first_xyz.transpose().A, second_xyz_aligned.transpose().A
+        # ):
+        #     ax.plot([x1, x2], [y1, y2], "-", color="red", label=label)
+        #     label = ""
 
         ax.legend()
 
         ax.set_xlabel("x [m]")
         ax.set_ylabel("y [m]")
+        plt.show()
         plt.savefig(args.plot, dpi=90)

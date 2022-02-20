@@ -78,7 +78,6 @@ def icp_known_corresp(P1: np.ndarray, P2: np.ndarray, QInd: np.ndarray, PInd: np
     # Arrange Pointclouds in order of correspondances as given by QInd and PInd
     Q = P1[:, QInd]
     P = P2[:, PInd]
-
     # Compute mean of the two Pointclouds
     MuQ = np.mean(Q, 1).reshape(np.shape(Q)[0], 1)
     MuP = np.mean(P, 1).reshape(np.shape(P)[0], 1)

@@ -17,7 +17,8 @@ op_filename = args.output_filename
 f = open(op_filename,"w+")
 
 for filename in os.listdir(ROOT_DIR + DATA_DIR):
-    time = filename.split('.p')[0]
-    f.write("%f"%float(time) + " " + DATA_DIR + filename + "\n")
+    if len(filename) == 24:
+        time = filename.split('.p')[0]
+        f.write("%f"%float(time) + " " + DATA_DIR + filename + "\n")
 
 f.close()

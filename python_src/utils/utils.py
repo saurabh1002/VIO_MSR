@@ -61,29 +61,29 @@ def toEuclidean(points: np.ndarray):
 
 def toEuclidean(points: np.ndarray):
     return (points / points[:, -1].reshape(-1, 1))[:, :-1]
-#Create RGBD Image
-#Create PointCLoud
 
-def create_rgbdimg(rgb_img: np.ndarray, depth_img: np.ndarray,depth_scale = 1000, depth_trunc= 10.0, convert_rgb_to_intensity = False):
-
+def create_rgbdimg(rgb_img: np.ndarray,
+                   depth_img: np.ndarray,
+                   depth_scale: float = 1000,
+                   depth_trunc: float = 10.0,
+                   convert_rgb_to_intensity: bool = False
+                  ):
     rgb_o3d = o3d.geometry.Image(rgb_img)
     depth_o3d = o3d.geometry.Image(depth_img)
     rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
             rgb_o3d,
             depth_o3d,
-            depth_scale=depth_scale,
-            depth_trunc=depth_trunc,
-            convert_rgb_to_intensity=convert_rgb_to_intensity,
+            depth_scale = depth_scale,
+            depth_trunc = depth_trunc,
+            convert_rgb_to_intensity = convert_rgb_to_intensity,
         )
-
     return rgbd
 
-def RGBD2PCL(rgbd_img: o3d.geometry.RGBDImage, camera_intrinsics: np.ndarray,normals: bool):
-    I = np.eye(4)
+def RGBD2PCL(rgbd_img: o3d.geometry.RGBDImage, camera_intrinsics: np.ndarray, compute_normals: bool):
+    global_pose = np.eye(4)
     pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
-            rgbd_img, camera_intrinsics, I)
-
-    if (normals):
+            rgbd_img, camera_intrinsics, global_pose)
+    if (compute_normals):
         pcd.estimate_normals()
 
     return pcd

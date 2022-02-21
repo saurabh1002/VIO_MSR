@@ -15,7 +15,6 @@ import cv2
 import os
 
 
-
 class DatasetPCL:
     def __init__(self, datadir):
         with open(datadir + "associations_pcl_gt.txt", "r") as f:
@@ -101,16 +100,12 @@ class DatasetGroundTruth:
 
 
 class DatasetOdometry:
-
-   
-
     def __init__(self, datadir):
         self.data_root = datadir
         self.rgb_frame_names = []
         self.depth_frame_names = []
         self.timestamps = []
         
-
         with open(self.data_root + 'associations_rgbd.txt', 'r') as f:
             for line in f.readlines():
                
@@ -120,25 +115,8 @@ class DatasetOdometry:
                 self.depth_frame_names.append(depth_path)
                 self.timestamps.append(timestamp)
                
-
-       
             self.points_all, self.descriptors_all = self.process_superpoint_feature_descriptors(self.data_root + "superpoint/")
         
-      
-
-    
-    def process_superpoint_feature_descriptors(self, superpoint_path: str) -> tuple[dict, dict]:
-
-        with open(superpoint_path + 'points.pickle', "rb") as f:
-            points_all = pickle.load(f)
-        with open(superpoint_path + 'descriptors.pickle', "rb") as f:
-            descriptors_all = pickle.load(f)
-
-        
-        return points_all, descriptors_all
-
-    
-
     def __len__(self):
         return len(self.rgb_frame_names)
 
@@ -154,10 +132,18 @@ class DatasetOdometry:
 
         return sample
 
+    def process_superpoint_feature_descriptors(self, superpoint_path: str) -> Tuple[dict, dict]:
+
+        with open(superpoint_path + 'points.pickle', "rb") as f:
+            points_all = pickle.load(f)
+        with open(superpoint_path + 'descriptors.pickle', "rb") as f:
+            descriptors_all = pickle.load(f)
+
+        
+        return points_all, descriptors_all
+
 
 class DatasetOdometryAll:
-
-   
 
     def __init__(self, datadir):
         self.data_root = datadir
@@ -166,7 +152,6 @@ class DatasetOdometryAll:
         self.timestamps = []
         self.folder_names = []
         
-
         with open(self.data_root + 'associations_rgbd.txt', 'r') as f:
             for line in f.readlines():
                
@@ -181,7 +166,6 @@ class DatasetOdometryAll:
                 else:
                     continue
 
-       
             self.points_all = {}
             self.descriptors_all = {}
             self.root_name = os.path.dirname(os.path.abspath(self.data_root))
@@ -192,20 +176,6 @@ class DatasetOdometryAll:
                 self.points_all = self.points_all | points
                 self.descriptors_all = self.descriptors_all | descriptors
                 
-
-    
-    def process_superpoint_feature_descriptors(self, superpoint_path: str) -> tuple[dict, dict]:
-
-        with open(superpoint_path + 'points.pickle', "rb") as f:
-            points_all = pickle.load(f)
-        with open(superpoint_path + 'descriptors.pickle', "rb") as f:
-            descriptors_all = pickle.load(f)
-
-        
-        return points_all, descriptors_all
-
-    
-
     def __len__(self):
         return len(self.rgb_frame_names)
 
@@ -220,3 +190,12 @@ class DatasetOdometryAll:
                   'points': points, 'desc': descriptor,'timestamp':timestamp}
 
         return sample
+
+    def process_superpoint_feature_descriptors(self, superpoint_path: str) -> tuple[dict, dict]:
+
+        with open(superpoint_path + 'points.pickle', "rb") as f:
+            points_all = pickle.load(f)
+        with open(superpoint_path + 'descriptors.pickle', "rb") as f:
+            descriptors_all = pickle.load(f)
+
+        return points_all, descriptors_all

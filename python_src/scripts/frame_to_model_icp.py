@@ -11,13 +11,13 @@
 # -- imports -------------------------------------------------------------------
 # ==============================================================================
 import numpy as np
+import numpy.linalg as la
 import scipy.spatial.transform as tf
 
+import argparse
 from tqdm import tqdm
+import sys; sys.path.append("..")
 
-import sys
-
-sys.path.append("..")
 from utils.dataloader import DatasetRGBD
 
 import open3d as o3d
@@ -29,16 +29,28 @@ def odom_from_SE3(t: float, TF: np.ndarray) -> (list):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='''Odometry using superpoint matching''')
 
-    datadir = "../../datasets/phenorob/front/apples_big_2021-10-14-14-51-08_0/"
+    # Dataset paths
+    parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/front/',
+                        type=str, help='Path to the root directory of the dataset')
+    parser.add_argument('-n', '--skip_frames', default=1, type=int, help="Number of frames to skip")
+    parser.add_argument('-v', '--visualize', default=False, type=bool, help='Visualize output')
+    parser.add_argument('-d', '--debug', default=False, type=bool, help='Debug Flag')
+    parser.add_argument('-p', '--plot', default=True, type=bool, help='Plot the odometry results')
 
-    rgb_camera_intrinsic = o3d.camera.PinholeCameraIntrinsic()
-    if "right" in datadir:
-        rgb_camera_intrinsic.set_intrinsics(640, 480, 606.6, 605.4, 323.2, 247.4)
-    elif "front" in datadir:
-        rgb_camera_intrinsic.set_intrinsics(640, 480, 381.5, 381.2, 315.5, 237.8)
+    args = parser.parse_args()
+
+    dataset_name = 'apples_big_2021-10-14-all/'
+
+    cam_intrinsics = o3d.camera.PinholeCameraIntrinsic()
+
+    if "right" in args.data_root_path:
+        cam_intrinsics.set_intrinsics(640, 480, 606.6, 605.4, 323.2, 247.4)
+    elif "front" in args.data_root_path:
+        cam_intrinsics.set_intrinsics(640, 480, 381.5, 381.2, 315.5, 237.8)
     
-    data = DatasetRGBD(datadir)
+    data = DatasetRGBD(args.data_root_path + dataset_name)
 
     volume = o3d.pipelines.integration.ScalableTSDFVolume(
         voxel_length=0.01,
@@ -58,20 +70,12 @@ if __name__ == "__main__":
         depth_o3d,
         depth_scale=1000,
         depth_trunc=5.0,
-        convert_rgb_to_intensity=False,
+        convert_rgb_to_intensity = False
     )
 
-    volume.integrate(
-        rgbd,
-        rgb_camera_intrinsic,
-        I,
-    )
+    volume.integrate(rgbd, cam_intrinsics, I)
 
-    skip_frames = 5
     for i, [t, rgb_cv2, depth_cv2] in tqdm(enumerate(data)):
-        if (i % skip_frames != 0):
-            continue
-
         rgb_o3d = o3d.geometry.Image(rgb_cv2)
         depth_o3d = o3d.geometry.Image(depth_cv2)
         rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
@@ -85,7 +89,7 @@ if __name__ == "__main__":
         model_pcd = volume.extract_point_cloud()
 
         frame_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
-            rgbd, rgb_camera_intrinsic, I
+            rgbd, cam_intrinsics, I
         )
 
         result = o3d.pipelines.registration.registration_icp(
@@ -97,18 +101,19 @@ if __name__ == "__main__":
         )
 
         T = result.transformation
-        # o3d.visualization.draw_geometries([model_pcd, frame_pcd.transform(T)])
 
         volume.integrate(
             rgbd,
-            rgb_camera_intrinsic,
-            np.linalg.inv(T),
+            cam_intrinsics,
+            la.inv(T),
         )
 
         poses.append(odom_from_SE3(t, np.array(T)))
 
-    np.savetxt("../../eval_data/front/apples_big_2021-10-14-14-51-08_0/poses_model_to_frame.txt", np.array(poses))
     mesh = volume.extract_triangle_mesh()
     mesh.compute_vertex_normals()
-    o3d.io.write_triangle_mesh("../../eval_data/front/apples_big_2021-10-14-14-51-08_0/full_mesh_model_to_frame.ply", mesh)
-    o3d.visualization.draw_geometries([mesh])
+
+    np.savetxt(f"../../eval_data/front/{dataset_name}poses_model_to_frame.txt", np.array(poses))
+    o3d.io.write_triangle_mesh("../../eval_data/front/{dataset_name}mesh_model_to_frame.ply", mesh)
+    if args.visualize:
+        o3d.visualization.draw_geometries([mesh])

@@ -17,6 +17,7 @@
 import numpy as np
 from typing import NoReturn
 import open3d as o3d
+from scipy.misc import derivative
 
 
 def read_file(path: str, delimiter: str = ' ') -> (np.ndarray):
@@ -65,25 +66,50 @@ def toEuclidean(points: np.ndarray):
 def create_rgbdimg(rgb_img: np.ndarray,
                    depth_img: np.ndarray,
                    depth_scale: float = 1000,
-                   depth_trunc: float = 10.0,
-                   convert_rgb_to_intensity: bool = False
+                   depth_trunc: float = 5.0,
+                   convert_rgb_to_intensity: bool = False,
+                   tensor: bool = False,
+                   device: str = o3d.core.Device("CUDA:0")
                   ):
-    rgb_o3d = o3d.geometry.Image(rgb_img)
-    depth_o3d = o3d.geometry.Image(depth_img)
-    rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
-            rgb_o3d,
-            depth_o3d,
-            depth_scale = depth_scale,
-            depth_trunc = depth_trunc,
-            convert_rgb_to_intensity = convert_rgb_to_intensity,
-        )
+    if not tensor:
+        rgb_o3d = o3d.geometry.Image(rgb_img)
+        depth_o3d = o3d.geometry.Image(depth_img)
+        rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
+                rgb_o3d,
+                depth_o3d,
+                depth_scale = depth_scale,
+                depth_trunc = depth_trunc,
+                convert_rgb_to_intensity = convert_rgb_to_intensity,
+            )
+    else:
+        rgb_o3d = o3d.t.geometry.Image(rgb_img)
+        depth_o3d = o3d.t.geometry.Image(depth_img)
+        rgbd = o3d.t.geometry.RGBDImage(rgb_o3d, depth_o3d).to(device)
+
     return rgbd
 
-def RGBD2PCL(rgbd_img: o3d.geometry.RGBDImage, camera_intrinsics: np.ndarray, compute_normals: bool):
+def RGBD2PCL(rgbd_img: o3d.geometry.RGBDImage,
+            camera_intrinsics,
+            compute_normals: bool, 
+            tensor: bool = False,
+            depth_scale: float = 1000,
+            depth_trunc: float = 5.0,
+            device: str = o3d.core.Device("CUDA:0")
+            ):
     global_pose = np.eye(4)
-    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
-            rgbd_img, camera_intrinsics, global_pose)
-    if (compute_normals):
-        pcd.estimate_normals()
+    if not tensor:
+        pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
+                rgbd_img, camera_intrinsics, global_pose)
+        if (compute_normals):
+            pcd.estimate_normals()
+    else:
+        pcd = o3d.t.geometry.PointCloud.create_from_rgbd_image(
+            rgbd_img,
+            o3d.core.Tensor(camera_intrinsics.intrinsic_matrix, o3d.core.Dtype.Float64),
+            o3d.core.Tensor(global_pose, o3d.core.Dtype.Float64),
+            depth_scale = depth_scale,
+            depth_max = depth_trunc,
+            with_normals = compute_normals
+        ).to(device)
 
     return pcd

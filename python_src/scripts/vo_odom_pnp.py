@@ -68,71 +68,79 @@ if __name__ == "__main__":
     cam_intrinsics = o3d.camera.PinholeCameraIntrinsic()
     
     if "right" in args.data_root_path:
+        max_depth = 5
         cam_intrinsics.set_intrinsics(640, 480, 606.6, 605.4, 323.2, 247.4)
     elif "front" in args.data_root_path:
+        max_depth = 10
         cam_intrinsics.set_intrinsics(640, 480, 381.5, 381.2, 315.5, 237.8)
 
     K = cam_intrinsics.intrinsic_matrix.astype(np.double)
 
     T = np.eye(4)
     poses = []
+    poses.append(odom_from_SE3(dataset[0]['timestamp'], T))
 
+    min_dist = 0.01
     skip = args.skip_frames
-    progress_bar = tqdm(range(0, len(dataset) - skip, skip))
-    for i in progress_bar:
-        keypts_2d_1, keypts_2d_2 = getMatches(dataset[i], dataset[i + skip])    
-        
-        keypts_3d_1 = convertTo3d(dataset[i]['depth'], keypts_2d_1.astype(np.int64), K)
-        keypts_3d_2 = convertTo3d(dataset[i + skip]['depth'], keypts_2d_2.astype(np.int64), K)
-        
-        idx = np.where(
-                (keypts_3d_1[:, -1] <= 10) &
-                (keypts_3d_1[:, -1] > 0) &
-                (keypts_3d_2[:, -1] <= 10) &
-                (keypts_3d_2[:, -1] > 0)
-                )[0]
+    i = 0
+    j = i + skip
 
-        max_iters = 40
-        termination_threshold = 0.001
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, max_iters, termination_threshold)
-        _, rvec, tvec, inliers = cv2.solvePnPRansac(keypts_3d_1[idx], keypts_2d_2[idx], K, None)
-
-        # rvec, tvec = cv2.solvePnPRefineLM(keypts_3d_1[idx], keypts_2d_2[idx], rgb_camera_intrinsic.intrinsic_matrix.astype(np.double), None, rvec,tvec,criteria)
-
-        T_local = np.eye(4)
-        R = cv2.Rodrigues(rvec)[0]
-        T_local[:-1,:-1] = R
-        T_local[:-1,-1] = tvec.reshape((3,))
-        
-        T =  T @ la.inv(T_local)
-
-        poses.append(odom_from_SE3(dataset[i]['timestamp'], T))
-
-        if args.debug:
-            print(f"Rotation: {R}\n")
-            print(f"translation: {tvec}\n")
-        
-        if args.visualize:
-            w = 640
-            rgb_match_frame = np.concatenate((dataset[i]['rgb'], dataset[i + 1]['rgb']), 1)
-            for kp in keypts_2d_1[idx]:
-                cv2.circle(rgb_match_frame, (int(kp[0]), int(kp[1])), 3, (255, 0, 0), -1)
-
-            for kp in keypts_2d_2[idx]:
-                cv2.circle(rgb_match_frame, (int(kp[0]) + w,
-                        int(kp[1])), 3, (0, 0, 255), -1)
-            output_frame = np.copy(rgb_match_frame)
-        
-            for kp_l, kp_r in zip(keypts_2d_1.astype(np.int64), keypts_2d_2.astype(np.int64)):
-                cv2.line(rgb_match_frame, (kp_l[0], kp_l[1]), (kp_r[0] + w, kp_r[1]), (0, 255, 255), 2)
-            output_frame = np.concatenate((output_frame, rgb_match_frame), 0)
+    while True:
+        try:
+            keypts_2d_1, keypts_2d_2 = getMatches(dataset[i], dataset[j])    
             
-            cv2.imshow("output", output_frame)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            keypts_3d_1 = convertTo3d(dataset[i]['depth'], keypts_2d_1.astype(np.int64), K)
+            keypts_3d_2 = convertTo3d(dataset[j]['depth'], keypts_2d_2.astype(np.int64), K)
+            
+            idx = np.where(
+                    (keypts_3d_1[:, -1] <= max_depth) &
+                    (keypts_3d_1[:, -1] > 0) &
+                    (keypts_3d_2[:, -1] <= max_depth) &
+                    (keypts_3d_2[:, -1] > 0)
+                    )[0]
+
+            _, rvec, tvec, inliers = cv2.solvePnPRansac(keypts_3d_1[idx], keypts_2d_2[idx], K, None)
+
+            if la.norm(tvec) < min_dist:
+                j = j + 1
+                continue
+
+            T_local = np.eye(4)
+            R = cv2.Rodrigues(rvec)[0]
+            T_local[:-1,:-1] = R
+            T_local[:-1,-1] = tvec.reshape((3,))
+            
+            T =  T @ la.inv(T_local)
+            poses.append(odom_from_SE3(dataset[j]['timestamp'], T))
+            i = j
+            j = j + skip
+            if args.debug:
+                print(f"Rotation: {R}\n")
+                print(f"translation: {tvec}\n")
+            
+            if args.visualize:
+                w = 640
+                rgb_match_frame = np.concatenate((dataset[i]['rgb'], dataset[i + 1]['rgb']), 1)
+                for kp in keypts_2d_1[idx]:
+                    cv2.circle(rgb_match_frame, (int(kp[0]), int(kp[1])), 3, (255, 0, 0), -1)
+
+                for kp in keypts_2d_2[idx]:
+                    cv2.circle(rgb_match_frame, (int(kp[0]) + w,
+                            int(kp[1])), 3, (0, 0, 255), -1)
+                output_frame = np.copy(rgb_match_frame)
+            
+                for kp_l, kp_r in zip(keypts_2d_1.astype(np.int64), keypts_2d_2.astype(np.int64)):
+                    cv2.line(rgb_match_frame, (kp_l[0], kp_l[1]), (kp_r[0] + w, kp_r[1]), (0, 255, 255), 2)
+                output_frame = np.concatenate((output_frame, rgb_match_frame), 0)
+                
+                cv2.imshow("output", output_frame)
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
+        except IndexError:
+            break
 
     poses = np.asarray(poses)
-    np.savetxt(f"../../eval_data/front/{dataset_name}poses_pnp_skip{skip}.txt", poses)
+    np.savetxt(f"../../eval_data/front/{dataset_name}superpoint/poses_pnp_skip{skip}.txt", poses)
 
     if args.plot:
         x = poses[:, 1]
@@ -148,12 +156,20 @@ if __name__ == "__main__":
 
         ax1.plot(-x, -y, 'r', label='Estimated')
         ax1.plot(gt_y, gt_z ,'b', label='Ground Truth')
+        ax1.set_xlabel('Y')
+        ax1.set_ylabel('Z')
         ax1.legend()
         ax2.plot(z, -y, 'r', label='Estimated')
         ax2.plot(gt_x, gt_z, 'b', label='Ground Truth')
+        ax2.set_xlabel('X')
+        ax2.set_ylabel('Z')
         ax2.legend()
         ax3.plot(z, -x, 'r', label='Estimated')
         ax3.plot(gt_x, gt_y, 'b', label='Ground Truth')
+        ax3.set_xlabel('X')
+        ax3.set_ylabel('Y')
         ax3.legend()
 
+        plt.tight_layout()
+        plt.savefig(f"../../eval_data/front/{dataset_name}superpoint/poses_pnp_skip{skip}.png")
         plt.show()

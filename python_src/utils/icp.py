@@ -11,6 +11,7 @@
 
 import numpy as np
 from numpy import linalg as la
+from typing import Tuple
 
 def compute_W(Q: np.ndarray, P: np.ndarray, MuQ: np.ndarray, MuP: np.ndarray) -> (np.ndarray):    
     """ Compute cross covariance matrix W to use in SVD
@@ -41,7 +42,7 @@ def compute_W(Q: np.ndarray, P: np.ndarray, MuQ: np.ndarray, MuP: np.ndarray) ->
 
     return W
 
-def compute_R_t(W: np.ndarray, MuQ: np.ndarray, MuP: np.ndarray) -> tuple[np.ndarray, np.ndarray]:    
+def compute_R_t(W: np.ndarray, MuQ: np.ndarray, MuP: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:    
     """ Compute rotation matrix and translation vector based on the SVD
 
     Arguments

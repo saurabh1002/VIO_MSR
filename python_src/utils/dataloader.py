@@ -191,7 +191,7 @@ class DatasetOdometryAll:
 
         return sample
 
-    def process_superpoint_feature_descriptors(self, superpoint_path: str) -> tuple[dict, dict]:
+    def process_superpoint_feature_descriptors(self, superpoint_path: str) -> Tuple[dict, dict]:
 
         with open(superpoint_path + 'points.pickle', "rb") as f:
             points_all = pickle.load(f)

@@ -205,8 +205,7 @@ if __name__=='__main__':
         descriptors_1 = compute_descriptor(keypts_2d_1, keypts_3d_1, hist_1)
         descriptors_2 = compute_descriptor(keypts_2d_2, keypts_3d_2, hist_2)
 
-        # M = compute_matches(descriptors_1[:, 5:], descriptors_2[:, 5:], rgb_frame_1.shape[0], rgb_frame_1.shape[1])
-        M = nn_match_two_way(descriptors_1[:, 5:].T, descriptors_2[:, 5:].T, 0.7)
+        M = compute_matches(descriptors_1[:, 5:], descriptors_2[:, 5:], rgb_frame_1.shape[0], rgb_frame_1.shape[1])
 
         P1_2d = descriptors_1[:, :2].astype(int)
         P2_2d = descriptors_2[:, :2].astype(int)

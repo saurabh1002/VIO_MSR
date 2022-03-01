@@ -57,7 +57,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='''Odometry using superpoint matching''')
 
     # Dataset paths
-    parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/front/',
+    parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/right/',
                         type=str, help='Path to the root directory of the dataset')
     parser.add_argument('-n', '--skip_frames', default=1, type=int, help="Number of frames to skip")
     parser.add_argument('-v', '--visualize', default=False, type=bool, help='Visualize output')
@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    dataset_name = 'apples_big_2021-10-14-all/'
+    dataset_name = 'apples_big_2021-10-14-14-51-08_0/'
     if not "all" in dataset_name:
         dataset = DatasetOdometry(args.data_root_path + dataset_name)
     else:
@@ -88,16 +88,18 @@ if __name__ == "__main__":
     skip = args.skip_frames
     progress_bar = tqdm(range(0, len(dataset) - skip, skip))
     for i in progress_bar:
-        keypts_2d_1, keypts_2d_2 = getMatches(dataset[i], dataset[i + 1])
+        keypts_2d_1, keypts_2d_2 = getMatches(dataset[i], dataset[i + skip])
 
         # idx = np.where(la.norm(keypts_2d_1 - keypts_2d_2, axis=1) > 1.3) [0]
-        if (np.linalg.norm(keypts_2d_1 - keypts_2d_2) > 70):
+        if (np.linalg.norm(keypts_2d_1 - keypts_2d_2) > 20):
             R, tvec = get_relative_orientation(keypts_2d_1, keypts_2d_2, K, K_inv)
             
             T_local = np.eye(4)
             T_local[:-1, :-1] = R
             T_local[:-1, -1] = tvec
-            T =  T @ T_local
+            T =  T @ la.inv(T_local)
+
+            poses.append(odom_from_SE3(dataset[i]['timestamp'], T))
 
             if args.debug:
                 print(f"Rotation: {R}\n")
@@ -105,7 +107,7 @@ if __name__ == "__main__":
 
             if args.visualize:
                 w = 640
-                rgb_match_frame = np.concatenate((dataset[i]['rgb'], dataset[i + 1]['rgb']), 1)
+                rgb_match_frame = np.concatenate((dataset[i]['rgb'], dataset[i + skip]['rgb']), 1)
                 for kp in keypts_2d_1:
                     cv2.circle(rgb_match_frame, (int(kp[0]), int(kp[1])), 3, (255, 0, 0), -1)
 

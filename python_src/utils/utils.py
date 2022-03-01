@@ -14,10 +14,12 @@
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
 # ==============================================================================
+import cv2
 import numpy as np
-from typing import NoReturn
 import open3d as o3d
-from scipy.misc import derivative
+import scipy.spatial.transform as tf
+
+from typing import NoReturn
 
 
 def read_file(path: str, delimiter: str = ' ') -> (np.ndarray):
@@ -54,14 +56,26 @@ def wrapTo2Pi(theta: float) -> (float):
         theta -= 2 * np.pi
     return theta
 
+
 def toHomogenous(points: np.ndarray):
     return np.hstack((points, np.ones((points.shape[0], 1))))
 
 def toEuclidean(points: np.ndarray):
     return (points / points[:, -1].reshape(-1, 1))[:, :-1]
 
-def toEuclidean(points: np.ndarray):
-    return (points / points[:, -1].reshape(-1, 1))[:, :-1]
+
+def se3_to_SE3(rvec: np.ndarray, tvec: np.ndarray) -> (np.ndarray):
+    T = np.eye(4)
+    T[:-1,:-1] = cv2.Rodrigues(rvec)[0]
+    T[:-1,-1] = tvec.reshape((3,))
+    return T
+
+
+def odom_from_SE3(t: float, TF: np.ndarray) -> (list):
+    origin = TF[:-1, -1]
+    rot_quat = tf.Rotation.from_matrix(TF[:-1, :-1]).as_quat()
+    return list(np.r_[t, origin, rot_quat])
+
 
 def create_rgbdimg(rgb_img: np.ndarray,
                    depth_img: np.ndarray,
@@ -87,6 +101,7 @@ def create_rgbdimg(rgb_img: np.ndarray,
         rgbd = o3d.t.geometry.RGBDImage(rgb_o3d, depth_o3d).to(device)
 
     return rgbd
+
 
 def RGBD2PCL(rgbd_img: o3d.geometry.RGBDImage,
             camera_intrinsics,

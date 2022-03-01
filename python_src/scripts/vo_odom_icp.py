@@ -3,9 +3,11 @@ import argparse
 from tqdm import tqdm
 import sys; sys.path.append(os.pardir)
 
-from utils.dataloader import DatasetOdometry, DatasetOdometryAll
 from utils.utils import *
+from superpoint_matching import nn_match_two_way
+from utils.dataloader import DatasetOdometry, DatasetOdometryAll
 
+import ipdb
 import open3d as o3d
 import numpy as np
 import numpy.linalg as la
@@ -16,6 +18,32 @@ def odom_from_SE3(t: float, TF: np.ndarray) -> (list):
     origin = TF[:-1, -1]
     rot_quat = tf.Rotation.from_matrix(TF[:-1, :-1]).as_quat()
     return list(np.r_[t, origin, rot_quat])
+
+def getMatches(keypts_1: dict, keypts_2: dict, threshold: float = 0.7):
+    
+    points2d_1 = keypts_1['points'][:,:2]
+    points2d_2 = keypts_2['points'][:,:2]
+
+    descriptor_1 = keypts_1['desc']
+    descriptor_2 = keypts_2['desc']
+
+    M = nn_match_two_way(descriptor_1.T, descriptor_2.T, threshold).astype(np.int64)
+
+    return points2d_1[M[:, 0]], points2d_2[M[:, 1]]
+
+def convertTo3d(depth_frame: np.ndarray, keypoints_2d: np.ndarray, K: np.ndarray):
+
+    depth_factor = 1000
+    permute_col_2d = np.array([[0, 1],[1, 0]])
+    permuted_keypoints = keypoints_2d @ permute_col_2d
+    keypts_depth = depth_frame[permuted_keypoints[:, 0], permuted_keypoints[:, 1]] / depth_factor
+
+    transformed_points = toHomogenous(keypoints_2d)
+    ray_dir = transformed_points @ la.inv(K).T
+    keypoints_3d = np.multiply(ray_dir, keypts_depth.reshape(-1, 1))
+    
+    return keypoints_3d
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='''Point-to-Point ICP Odometry''')
@@ -30,7 +58,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    dataset_name = 'apples_big_2021-10-14-all/'
+    device = o3d.core.Device("CUDA:0")
+    tensor = True
+
+    dataset_name = 'apples_big_2021-10-14-14-51-08_0/'
     if not "all" in dataset_name:
         dataset = DatasetOdometry(args.data_root_path + dataset_name)
     else:
@@ -47,34 +78,68 @@ if __name__ == "__main__":
 
     T = np.eye(4)
     poses = []
+    poses.append(odom_from_SE3(dataset[0]['timestamp'], T))
 
+    p2p_distance_threshold = 0.05
+    initial_estimate_tf = np.eye(4)
+    
+    min_dist = 0.01
     skip = args.skip_frames
-    progress_bar = tqdm(range(0, len(dataset) - skip, skip))
-    for i in progress_bar:
-        rgbd1 = create_rgbdimg(dataset[i]['rgb'], dataset[i]['depth'])
-        rgbd2 = create_rgbdimg(dataset[i + skip]['rgb'], dataset[i + skip]['depth'])
+    i = 0
+    j = i + skip
 
-        source_pcd = RGBD2PCL(rgbd1, cam_intrinsics, compute_normals=False)
-        target_pcd = RGBD2PCL(rgbd2, cam_intrinsics, compute_normals=False)
+    while True:
+        try:
+            keypts_2d_1, keypts_2d_2 = getMatches(dataset[i], dataset[j])    
+            
+            keypts_3d_1 = convertTo3d(dataset[i]['depth'], keypts_2d_1.astype(np.int64), K)
+            keypts_3d_2 = convertTo3d(dataset[j]['depth'], keypts_2d_2.astype(np.int64), K)
+            
+            rgbd1 = create_rgbdimg(dataset[i]['rgb'], dataset[i]['depth'], tensor=tensor)
+            rgbd2 = create_rgbdimg(dataset[j]['rgb'], dataset[j]['depth'], tensor=tensor)
 
-        p2p_distance_threshold = 0.05
-        initial_estimate_tf = np.eye(4)
-        result = o3d.pipelines.registration.registration_icp(
-            source_pcd,
-            target_pcd,
-            p2p_distance_threshold,
-            initial_estimate_tf,
-            o3d.pipelines.registration.TransformationEstimationPointToPoint(),
-        )
-        T = T @ result.transformation
+            target_pcd = RGBD2PCL(rgbd1, cam_intrinsics, compute_normals=True, tensor=tensor)
+            source_pcd = RGBD2PCL(rgbd2, cam_intrinsics, compute_normals=False, tensor=tensor)
 
-        poses.append(odom_from_SE3(dataset[i]['timestamp'], T))
+            # target_pcd = o3d.t.geometry.PointCloud(device)
+            # target_pcd.point["positions"] = o3d.core.Tensor(keypts_3d_1, o3d.core.Dtype.Float64, device)
 
-        if args.debug:
-            pass
+            # source_pcd = o3d.t.geometry.PointCloud(device)
+            # source_pcd.point["positions"] = o3d.core.Tensor(keypts_3d_2, o3d.core.Dtype.Float64, device)
+
+            result = o3d.t.pipelines.registration.icp(
+                source_pcd,
+                target_pcd,
+                p2p_distance_threshold,
+                o3d.core.Tensor(initial_estimate_tf, o3d.core.Dtype.Float64),
+                o3d.t.pipelines.registration.TransformationEstimationPointToPoint(),
+            )
+
+            if la.norm(result.transformation.numpy()[:3, -1]) < min_dist:
+                j = j + 1
+                continue
+
+            T = result.transformation.numpy() @ T
+            i = j
+            j = j + skip
+
+            # o3d.visualization.draw_geometries([target_pcd.to_legacy().paint_uniform_color(np.array([1, 0, 0])),
+            #                                    source_pcd.to_legacy().paint_uniform_color(np.array([0, 1, 0]))])
+
+            # o3d.visualization.draw_geometries([target_pcd.to_legacy().paint_uniform_color(np.array([1, 0, 0])),
+            #                                    source_pcd.transform(result.transformation).to_legacy().paint_uniform_color(np.array([0, 1, 0]))])
+
+            poses.append(odom_from_SE3(dataset[i]['timestamp'], T))
+
+            if args.debug:
+                pass
+        except IndexError:
+            break
 
     poses = np.asarray(poses)
     np.savetxt(f"../../eval_data/front/{dataset_name}poses_ICP_Full_skip{skip}.txt", poses)
+
+    # ipdb.set_trace()
 
     if args.plot:
         x = poses[:, 1]
@@ -90,24 +155,31 @@ if __name__ == "__main__":
 
         ax1.plot(-x, y, 'r', label='Estimated')
         ax1.plot(gt_y, gt_z ,'b', label='Ground Truth')
+        ax1.set_xlabel('Y')
+        ax1.set_ylabel('Z')
         ax1.legend()
         ax2.plot(z, y, 'r', label='Estimated')
         ax2.plot(gt_x, gt_z, 'b', label='Ground Truth')
+        ax2.set_xlabel('X')
+        ax2.set_ylabel('Z')
         ax2.legend()
         ax3.plot(z, -x, 'r', label='Estimated')
         ax3.plot(gt_x, gt_y, 'b', label='Ground Truth')
+        ax3.set_xlabel('X')
+        ax3.set_ylabel('Y')
         ax3.legend()
 
+        plt.tight_layout()
+        plt.savefig(f"../../eval_data/front/{dataset_name}poses_ICP_Full_skip{skip}.png")
         plt.show()
 
     # np.savetxt(args.data_root_path + "pose.txt", np.array(poses))
     
     # T_ = icp_known_corresp(keypts_3d_1.T,keypts_3d_2.T,idx,idx)
 
-    # import ipdb;ipdb.set_trace()
     # # print(type(points_3d))
     # # import ipdb;ipdb.set_trace()
-    # rgbd1 = create_rgbdimg(dataset[i]['rgb'],dataset[i]['depth'])
+    # rgbd1 = create_rgbdimg(dataset[i]['rgb'], dataset[i]['depth'])
     # source_pcd = RGBD2PCL(rgbd1,rgb_camera_intrinsic,False)
     # pcl1 = o3d.geometry.PointCloud()
     # pcl1.points = o3d.utility.Vector3dVector(keypts_3d_1)

@@ -53,7 +53,7 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/front/',
                         type=str, help='Path to the root directory of the dataset')
     parser.add_argument('-n', '--skip_frames', default=1, type=int, help="Number of frames to skip")
-    parser.add_argument('-v', '--visualize', default=False, type=bool, help='Visualize output')
+    parser.add_argument('-v', '--visualize', default=True, type=bool, help='Visualize output')
     parser.add_argument('-d', '--debug', default=False, type=bool, help='Debug Flag')
     parser.add_argument('-p', '--plot', default=True, type=bool, help='Plot the odometry results')
 
@@ -87,6 +87,7 @@ if __name__ == "__main__":
 
     while True:
         try:
+            print(f"Processed frames {i}/{len(dataset)}")
             keypts_2d_1, keypts_2d_2 = getMatches(dataset[i], dataset[j])    
             
             keypts_3d_1 = convertTo3d(dataset[i]['depth'], keypts_2d_1.astype(np.int64), K)

@@ -1,5 +1,8 @@
 import os
-import sys; sys.path.append(os.pardir)
+import sys
+
+from tomlkit import key
+import tornado; sys.path.append(os.pardir)
 import argparse
 from tqdm import tqdm
 
@@ -35,7 +38,7 @@ def getMatches(data_1: dict, data_2: dict,
         keypts_3d_1 = convertTo3d(data_1['depth'], keypts_2d_1.astype(np.int64), K)
         keypts_3d_2 = convertTo3d(data_2['depth'], keypts_2d_2.astype(np.int64), K)
             
-        return keypts_2d_1, keypts_2d_2, keypts_3d_1, keypts_3d_2
+        return keypts_2d_1, keypts_2d_2, keypts_3d_1, keypts_3d_2, True
 
     elif type == 'ORB':
         img_1 = data_1['rgb']
@@ -60,9 +63,12 @@ def getMatches(data_1: dict, data_2: dict,
         keypts_3d_2 = convertTo3d(data_2['depth'], points2d_2.astype(np.int64), K)
         
 
-        return points2d_1, points2d_2, keypts_3d_1, keypts_3d_2
+        return points2d_1, points2d_2, keypts_3d_1, keypts_3d_2, True
 
     elif type == '3Dhist':      
+        if data_1['det'] == None or data_2['det'] == None:
+            return None, None, None, None, False
+
         keypts_2d_1 = np.array(data_1['det'])[:, :2]
         keypts_2d_2 = np.array(data_2['det'])[:, :2]
 
@@ -80,7 +86,7 @@ def getMatches(data_1: dict, data_2: dict,
         if(M.shape[0] > 0):
             H, M = compute_homography_ransac(keypts_2d_1, keypts_2d_2, M)
 
-        return keypts_2d_1[M[:, 0]], keypts_2d_2[M[:, 1]], keypts_3d_1[M[:, 0]], keypts_3d_2[M[:, 1]]
+        return keypts_2d_1[M[:, 0]], keypts_2d_2[M[:, 1]], keypts_3d_1[M[:, 0]], keypts_3d_2[M[:, 1]], True
 
 def convertTo3d(depth_frame: np.ndarray, keypoints_2d: np.ndarray, K: np.ndarray) -> (np.ndarray):
     depth_factor = 1000
@@ -127,35 +133,47 @@ if __name__ == "__main__":
 
     K = cam_intrinsics.intrinsic_matrix.astype(np.double)
 
+    T_rot =  np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]) @ np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]])
+
     T = np.eye(4)
     poses = []
-    poses.append(odom_from_SE3(dataset[0]['timestamp'], T))
 
-    min_dist_flag = False
-    min_dist = 1
+    poses.append(odom_from_SE3(dataset.timestamps[0], T))
+
+    min_dist_flag = True
+    min_dist = 0.75
 
     i = 0
     j = i + skip
 
     while True:
         try:
-            keypts_2d_1, keypts_2d_2, keypts_3d_1, keypts_3d_2 = \
+            keypts_2d_1, keypts_2d_2, keypts_3d_1, keypts_3d_2, det_flag = \
                 getMatches(dataset[i], dataset[j], K, type=method)
+
+            if not det_flag or min(len(keypts_2d_1), len(keypts_2d_2)) < 6:
+                i = i + skip
+                j = j + skip
+                continue
+                # keypts_2d_1, keypts_2d_2, keypts_3d_1, keypts_3d_2, det_flag = \
+                # getMatches(dataset[i], dataset[j], K, type='ORB')
 
             idx = np.where(
                         (keypts_3d_1[:, -1] <= max_depth) & (keypts_3d_1[:, -1] > 0) &
                         (keypts_3d_2[:, -1] <= max_depth) & (keypts_3d_2[:, -1] > 0)
                     )[0]
             
-            # print(len(idx))
             _, rvec, tvec, inliers = cv2.solvePnPRansac(keypts_3d_1[idx].astype(np.float64), keypts_2d_2[idx].astype(np.float64), K, None)
 
             if min_dist_flag:
                 if la.norm(tvec) < min_dist and la.norm(rvec) < np.pi / 18:
                     j = j + 1
                     continue
-            T =  T @ la.inv(se3_to_SE3(rvec, tvec))
-            poses.append(odom_from_SE3(dataset[j]['timestamp'], T))
+            
+            T_local = la.inv(se3_to_SE3(rvec, tvec))
+            
+            T =  T @ T_local
+            poses.append(odom_from_SE3(dataset[j]['timestamp'], T, T_rot.T))
 
             i = j
             if not min_dist_flag:
@@ -207,18 +225,18 @@ if __name__ == "__main__":
 
         fig,(ax1, ax2, ax3) = plt.subplots(3, 1)
 
-        ax1.plot(-x, -y, 'r', label='Estimated')
-        ax1.plot(gt_y, gt_z ,'b', label='Ground Truth')
+        ax1.plot(y, z, 'r', label='Estimated')
+        ax1.plot(gt_y, gt_z ,'b', label='LIDAR Poses')
         ax1.set_xlabel('Y')
         ax1.set_ylabel('Z')
         ax1.legend()
-        ax2.plot(z, -y, 'r', label='Estimated')
-        ax2.plot(gt_x, gt_z, 'b', label='Ground Truth')
+        ax2.plot(x, z, 'r', label='Estimated')
+        ax2.plot(gt_x, gt_z, 'b', label='LIDAR Poses')
         ax2.set_xlabel('X')
         ax2.set_ylabel('Z')
         ax2.legend()
-        ax3.plot(z, -x, 'r', label='Estimated')
-        ax3.plot(gt_x, gt_y, 'b', label='Ground Truth')
+        ax3.plot(x, y, 'r', label='Estimated')
+        ax3.plot(gt_x, gt_y, 'b', label='LIDAR Poses')
         ax3.set_xlabel('X')
         ax3.set_ylabel('Y')
         ax3.legend()

@@ -71,8 +71,8 @@ def se3_to_SE3(rvec: np.ndarray, tvec: np.ndarray) -> (np.ndarray):
     return T
 
 
-def odom_from_SE3(t: float, TF: np.ndarray) -> (list):
-    origin = TF[:-1, -1]
+def odom_from_SE3(t: float, TF: np.ndarray, change_basis: np.ndarray = np.eye(3)) -> (list):
+    origin = change_basis @ TF[:-1, -1]
     rot_quat = tf.Rotation.from_matrix(TF[:-1, :-1]).as_quat()
     return list(np.r_[t, origin, rot_quat])
 

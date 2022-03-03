@@ -112,7 +112,7 @@ class DatasetOdometry:
                 timestamp, rgb_path, _, depth_path = line.rstrip("\n").split(' ')
                 self.rgb_frame_names.append(rgb_path)
                 self.depth_frame_names.append(depth_path)
-                self.timestamps.append(timestamp)
+                self.timestamps.append(float(timestamp))
             
             if self.type == 'superpoint':
                 self.points_all, self.descriptors_all = process_superpoint_feature_descriptors(self.data_root + "superpoint/")
@@ -127,7 +127,7 @@ class DatasetOdometry:
 
         rgb_frame = cv2.imread(self.data_root + self.rgb_frame_names[idx])
         depth_frame = cv2.imread(self.data_root + self.depth_frame_names[idx],cv2.CV_16UC1)
-        timestamp = float(self.timestamps[idx])
+        timestamp = self.timestamps[idx]
 
         if self.type == 'superpoint':
             points = self.points_all[self.rgb_frame_names[idx].split('/')[1]]
@@ -137,7 +137,11 @@ class DatasetOdometry:
                     
         elif self.type == '3Dhist':
             key_names = self.rgb_frame_names[idx].split('/')[1].split('.')
-            detection = self.detections_all[key_names[0] + '.' + key_names[1]]
+            if (key_names[0] + '.' + key_names[1]) in self.detections_all.keys() and \
+                len(self.detections_all[key_names[0] + '.' + key_names[1]]) > 8:
+                detection = self.detections_all[key_names[0] + '.' + key_names[1]]
+            else:
+                detection = None
             sample = {'rgb': rgb_frame, 'depth': depth_frame,
                       'det': detection,'timestamp':timestamp}
         
@@ -161,7 +165,7 @@ class DatasetOdometryAll:
                 timestamp, rgb_path, _, depth_path = line.rstrip("\n").split(' ')
                 self.rgb_frame_names.append(rgb_path[3:])
                 self.depth_frame_names.append(depth_path[3:])
-                self.timestamps.append(timestamp)
+                self.timestamps.append(float(timestamp))
                 name = rgb_path.split("/")[1]
 
                 if name not in self.folder_names:
@@ -193,7 +197,7 @@ class DatasetOdometryAll:
     def __getitem__(self, idx):
         rgb_frame = cv2.imread(self.root_name + "/" + self.rgb_frame_names[idx])
         depth_frame = cv2.imread(self.root_name + "/" + self.depth_frame_names[idx], cv2.CV_16UC1)
-        timestamp = float(self.timestamps[idx])
+        timestamp = self.timestamps[idx]
 
         if self.type == 'superpoint':
             points = self.points_all[self.rgb_frame_names[idx].split('/')[-1]]
@@ -202,8 +206,12 @@ class DatasetOdometryAll:
                     'points': points, 'desc': descriptor,'timestamp':timestamp}
                     
         elif self.type == '3Dhist':
-            key_names = self.rgb_frame_names[idx].split('/')[1].split('.')
-            detection = self.detections_all[key_names[0] + '.' + key_names[1]]
+            key_names = self.rgb_frame_names[idx].split('/')[2].split('.')
+            if (key_names[0] + '.' + key_names[1]) in self.detections_all.keys() and \
+                len(self.detections_all[key_names[0] + '.' + key_names[1]]) > 8:
+                detection = self.detections_all[key_names[0] + '.' + key_names[1]]
+            else:
+                detection = None
             sample = {'rgb': rgb_frame, 'depth': depth_frame,
                       'det': detection,'timestamp':timestamp}
         

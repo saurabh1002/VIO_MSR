@@ -108,7 +108,7 @@ if __name__ == "__main__":
                         type=str, help='Path to the root directory of the dataset')
     parser.add_argument('-t', '--type', required=True, type=str, help='Type of the features and descriptor'),
     parser.add_argument('-n', '--skip_frames', default=1, type=int, help="Number of frames to skip")
-    parser.add_argument('-v', '--visualize', default=False, type=bool, help='Visualize output')
+    parser.add_argument('-v', '--visualize', default=True, type=bool, help='Visualize output')
     parser.add_argument('-d', '--debug', default=False, type=bool, help='Debug Flag')
     parser.add_argument('-p', '--plot', default=True, type=bool, help='Plot the odometry results')
 

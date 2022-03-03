@@ -8,7 +8,7 @@ import numpy as np
 
 
 FILENAME = 'apples_2021-10-14-14-36-15_0'
-ROOT_DIR = '/home/dhagash/VIO_MSR/datasets/phenorob/mapping'
+ROOT_DIR = '/home/dhagash/NOBACK_CKA'
 DEPTH_SAVE = '/home/dhagash/VIO_MSR/datasets/phenorob/mapping/images_apples_right/depth/'
 COLOR_SAVE = '/home/dhagash/VIO_MSR/datasets/phenorob/mapping/images_apples_right/rgb/'
 BAGFILE = ROOT_DIR + '/' + FILENAME + '.bag'

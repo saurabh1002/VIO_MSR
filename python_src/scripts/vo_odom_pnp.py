@@ -1,8 +1,6 @@
 import os
-import sys
 
-from tomlkit import key
-import tornado; sys.path.append(os.pardir)
+import sys; sys.path.append(os.pardir)
 import argparse
 from tqdm import tqdm
 
@@ -108,7 +106,7 @@ if __name__ == "__main__":
                         type=str, help='Path to the root directory of the dataset')
     parser.add_argument('-t', '--type', required=True, type=str, help='Type of the features and descriptor'),
     parser.add_argument('-n', '--skip_frames', default=1, type=int, help="Number of frames to skip")
-    parser.add_argument('-v', '--visualize', default=True, type=bool, help='Visualize output')
+    parser.add_argument('-v', '--visualize', default=False, type=bool, help='Visualize output')
     parser.add_argument('-d', '--debug', default=False, type=bool, help='Debug Flag')
     parser.add_argument('-p', '--plot', default=True, type=bool, help='Plot the odometry results')
 
@@ -140,7 +138,7 @@ if __name__ == "__main__":
 
     poses.append(odom_from_SE3(dataset.timestamps[0], T))
 
-    min_dist_flag = True
+    min_dist_flag = False
     min_dist = 0.75
 
     i = 0
@@ -173,7 +171,7 @@ if __name__ == "__main__":
             T_local = la.inv(se3_to_SE3(rvec, tvec))
             
             T =  T @ T_local
-            poses.append(odom_from_SE3(dataset[j]['timestamp'], T, T_rot.T))
+            poses.append(odom_from_SE3(dataset[j]['timestamp'], T))
 
             i = j
             if not min_dist_flag:

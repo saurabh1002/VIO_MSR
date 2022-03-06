@@ -31,9 +31,11 @@ if __name__ == '__main__':
         # img = 
         with open(os.path.join(args.path,names),'r') as f:
             lines = f.readlines()
-
-            for line in lines:
                 
+            for line in lines:
+                if line == 'None':
+                    print(names)
+                    break
                 xywh = line.split(" ")
                 # print(xywh[1])
                

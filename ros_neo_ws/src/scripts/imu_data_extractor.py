@@ -21,8 +21,6 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output_file', type=str, help='Outfile name')
 
     args = parser.parse_args()
-
-
     
     FILE_SAVE = args.output_file
     BAGFILE = args.file_name

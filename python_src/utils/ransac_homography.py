@@ -100,10 +100,11 @@ def compute_homography_ransac(C1: np.ndarray, C2: np.ndarray, M: np.ndarray):
             [cornerIdx1, cornerIdx2] each row contains indices of inlier matches
     """
     # RANSAC parameters
-    max_iter = 100
+    max_iter = 500
     min_inlier_ratio = 0.6
     inlier_thres = 2
 
+    # num_matches = C1.shape[0]
     num_matches = M.shape[0]
     prev_best_num_inliers = 0
 
@@ -114,6 +115,7 @@ def compute_homography_ransac(C1: np.ndarray, C2: np.ndarray, M: np.ndarray):
         p2 = C2[M[k, 1]]
         H = calculate_homography_four_matches(p1, p2)
         residuals = compute_residual(C1[M[:, 0], :], C2[M[:, 1], :], H)
+        # residuals = compute_residual(C1, C2, H)
         # Find number of inliers satisfying the inlier threshold
         num_of_inliers = np.sum(residuals < inlier_thres)
         # Indices of the inlier matches
@@ -129,7 +131,7 @@ def compute_homography_ransac(C1: np.ndarray, C2: np.ndarray, M: np.ndarray):
             M_final = M[inliers_idx[0], :]
             break
 
-    return H_final, M_final
+    return H_final, M_final#prev_best_num_inliers 
 
 # Calculate the geometric distance between estimated points and original points, namely residuals.
 def compute_residual(P1: np.ndarray, P2: np.ndarray, H: np.ndarray) -> (np.ndarray):
@@ -147,6 +149,8 @@ def compute_residual(P1: np.ndarray, P2: np.ndarray, H: np.ndarray) -> (np.ndarr
     - residuals : residual computed for the corresponding points P1 and P2 under the transformation given by H          
     """
     # Compute the predicted coordinates of keypoints in first image warped by the homography
+    # print(H)
+    # print(P1_homo)
     P1_homo = np.hstack((P1, np.ones((P1.shape[0], 1)))).T
     P2_pred_homo = H @ P1_homo
     P2_pred = P2_pred_homo[:2, :] / P2_pred_homo[2, :].reshape(1, -1)

@@ -31,15 +31,16 @@ if __name__ == "__main__":
     dataset_name = 'apples_big_2021-10-14-all/'
     T_rot =  np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]) @ np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]])
 
-    poses_combined = np.loadtxt(f"../../eval_data/{cam_dir}/{dataset_name}{method}/PnP/poses_combined_skip_35.txt")
+    poses_combined = np.loadtxt(f"../../eval_data/{cam_dir}/{dataset_name}{method}/PnP/poses_combined_min_dist_1_10deg.txt")
 
     poses_combined = poses_combined[:, 1:4] @ T_rot
     com_x = poses_combined[:, 0]
     com_y = poses_combined[:, 1]
     com_z = poses_combined[:, 2]
 
-    poses_vo = np.loadtxt(f"../../eval_data/{cam_dir}/{dataset_name}{method}/PnP/poses_skip_35.txt")
-
+    # poses_vo = np.loadtxt(f"../../eval_data/{cam_dir}/{dataset_name}{method}/PnP/poses_min_dist_1_10deg.txt")
+    poses_vo = np.loadtxt(f'/home/dhagash/Downloads/eval_data/front/apples_big_2021-10-14-all/superpoint/PnP/poses_min_dist_1_10deg.txt')
+    
     poses_vo = poses_vo[:, 1:4] @ T_rot
     vo_x = poses_vo[:, 0]
     vo_y = poses_vo[:, 1]
@@ -75,5 +76,5 @@ if __name__ == "__main__":
 
 
     plt.tight_layout()
-    plt.savefig(f"../../eval_data/{cam_dir}/{dataset_name}{method}/PnP/poses_combined_skip_{skip}.png")
+    plt.savefig(f"../../eval_data/{cam_dir}/{dataset_name}{method}/PnP/poses_combined_min_dist_{skip}_10deg.png")
     plt.show()

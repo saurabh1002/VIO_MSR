@@ -141,6 +141,6 @@ def poses_to_rosbag(data_path: str, bag_path: str, topic_name: str, parent_frame
 
 
 if __name__ == '__main__':
-    data_path = '/home/dhagash/tmp/VIO_MSR/eval_data/front/apples_big_2021-10-14-all/superpoint/PnP/poses_skip_1.txt'
-    bag_path = '/home/dhagash/tmp/VIO_MSR/eval_data/front/apples_big_2021-10-14-all/superpoint/PnP/poses_skip_1.bag'
+    data_path = '/home/dhagash/Downloads/eval_data/front/apples_big_2021-10-14-all/superpoint/PnP/poses_min_dist_1_10deg.txt'
+    bag_path = '/home/dhagash/tmp/VIO_MSR/eval_data/front/apples_big_2021-10-14-all/superpoint/PnP/poses_min_dist_1_10deg.bag'
     poses_to_rosbag(data_path, bag_path, 'vo', 'odom', 'cam_frame')

@@ -20,11 +20,13 @@ if __name__=='__main__':
 
     bag = rosbag.Bag(BAGFILE)
     odom_topic = bag.read_messages(TOPIC)
-
+    # print(len(odom_topic))
     poses = []
     for k, b in enumerate(odom_topic):
+        
         t = str(b.message.header.stamp.secs) + '.' + str(b.message.header.stamp.nsecs)
         t = float(t)
+        # print(t)
         x = b.message.pose.pose.position.x
         y = b.message.pose.pose.position.y
         z = b.message.pose.pose.position.z
@@ -35,6 +37,7 @@ if __name__=='__main__':
         qw = b.message.pose.pose.orientation.w
 
         poses.append([t, x, y, z, qx, qy, qz, qw])
+        # print(poses)
 
     poses = np.array(poses, np.float64)
 

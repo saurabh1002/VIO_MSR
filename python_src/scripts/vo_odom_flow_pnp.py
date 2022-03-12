@@ -166,7 +166,10 @@ if __name__=='__main__':
             cv2.destroyAllWindows()
         
     poses = np.asarray(poses)
-    np.savetxt(f"../../eval_data/front/{dataset_name}superpoint/LKFlow/poses_skip_{skip}.txt", poses)
+
+    cam_dir = 'front' if 'front' in args.data_root_path else 'right'
+
+    np.savetxt(f"../../eval_data/{cam_dir}/{dataset_name}superpoint/LKFlow/poses_skip_{skip}.txt", poses)
 
     if args.plot:
         x = poses[:, 1]
@@ -197,5 +200,5 @@ if __name__=='__main__':
         ax3.legend()
 
         plt.tight_layout()
-        plt.savefig(f"../../eval_data/front/{dataset_name}superpoint/LKFlow/poses_skip_{skip}.png")
+        plt.savefig(f"../../eval_data/{cam_dir}/{dataset_name}superpoint/LKFlow/poses_skip_{skip}.png")
         plt.show()

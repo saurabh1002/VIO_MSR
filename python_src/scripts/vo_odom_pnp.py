@@ -1,17 +1,15 @@
 import os
 import sys
-
-from tomlkit import key
-import tornado; sys.path.append(os.pardir)
+sys.path.append(os.pardir)
 import argparse
 from tqdm import tqdm
 
 from utils.icp import *
 from utils.utils import *
+from descriptor_3d_hist import *
 from superpoint_matching import nn_match_two_way
 from utils.dataloader import DatasetOdometry, DatasetOdometryAll
 
-from descriptor_3d_hist import *
 
 import cv2
 import open3d as o3d
@@ -25,7 +23,25 @@ def getMatches(data_1: dict, data_2: dict,
                 superpoint_threshold: float = 0.7, 
                 fast_threshold: float = 5, 
                 type: str = 'superpoint'
-               ):
+               ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, bool]:
+    """Get Matching Features
+    
+    Arguments
+    ---------
+    - data_1: Keypoints data from image frame 1
+    - data_2: Keypoints data from image frame 2
+    - superpoint_threshold: Two way matching threshold for superpoint features
+    - fast_threshold: corner threshold for fast features
+    - type: which features to use ['superpoint', 'ORB', '3Dhist']
+
+    Returns
+    -------
+    - points2d_1: Matched 2D keypoints in frame 1
+    - points2d_2: Matched 2D keypoints in frame 2
+    - points3d_1: Corresponding 3D keypoints in frame 1
+    - points3d_2: Corresponding 3D keypoints in frame 2
+    - detections_flag: bool flag representing matches found or not
+    """
     if type == 'superpoint':
         descriptor_1 = data_1['desc']
         descriptor_2 = data_2['desc']
@@ -88,11 +104,23 @@ def getMatches(data_1: dict, data_2: dict,
 
         return keypts_2d_1[M[:, 0]], keypts_2d_2[M[:, 1]], keypts_3d_1[M[:, 0]], keypts_3d_2[M[:, 1]], True
 
-def convertTo3d(depth_frame: np.ndarray, keypoints_2d: np.ndarray, K: np.ndarray) -> (np.ndarray):
-    depth_factor = 1000
-    permute_col_2d = np.array([[0, 1], [1, 0]])
+def convertTo3d(depth_frame: np.ndarray, keypoints_2d: np.ndarray, K: np.ndarray, depth_scale: float = 1000.0) -> np.ndarray:
+    """Compute corresponding 3D keypoints for given 2D keypoints
+    
+    Arguments
+    ---------
+    - depth_frame: Depth Image for the corresponding frame
+    - keypoints_2d: 2D keypoints detected from the corresponding RBG frame
+    - K: Camera calibration matrix
+    - depth_scale: conversion factor from depth pixel intensity to depth
+
+    Returns
+    -------
+    - keypoint_3d: 3D keypoints
+    """
+    permute_col_2d = np.array([[0, 1],[1, 0]])
     permuted_keypoints = keypoints_2d @ permute_col_2d
-    keypts_depth = depth_frame[permuted_keypoints[:, 0], permuted_keypoints[:, 1]] / depth_factor
+    keypts_depth = depth_frame[permuted_keypoints[:, 0], permuted_keypoints[:, 1]] / depth_scale
 
     transformed_points = toHomogenous(keypoints_2d)
     ray_dir = transformed_points @ la.inv(K).T
@@ -100,23 +128,27 @@ def convertTo3d(depth_frame: np.ndarray, keypoints_2d: np.ndarray, K: np.ndarray
     
     return keypoints_3d
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='''VO using PnP algorithm with Superpoint Features''')
-
-    # Dataset paths
+def argparser():
+    """Argument Parser
+    """
+    parser = argparse.ArgumentParser(description='''PnP Pose Estimation using Superpoint Feature Matching''')
     parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/front/',
                         type=str, help='Path to the root directory of the dataset')
     parser.add_argument('-t', '--type', required=True, type=str, help='Type of the features and descriptor'),
     parser.add_argument('-n', '--skip_frames', default=1, type=int, help="Number of frames to skip")
-    parser.add_argument('-v', '--visualize', default=True, type=bool, help='Visualize output')
+    parser.add_argument('-v', '--visualize', default=False, type=bool, help='Visualize output')
     parser.add_argument('-d', '--debug', default=False, type=bool, help='Debug Flag')
     parser.add_argument('-p', '--plot', default=True, type=bool, help='Plot the odometry results')
 
     args = parser.parse_args()
-    skip = args.skip_frames
-    method = args.type
 
+    return args
+
+if __name__ == "__main__":
+    args = argparser()
     dataset_name = 'apples_big_2021-10-14-all/'
+    method = args.type
+    
     if not "all" in dataset_name:
         dataset = DatasetOdometry(args.data_root_path + dataset_name, method)
     else:
@@ -132,84 +164,85 @@ if __name__ == "__main__":
         cam_intrinsics.set_intrinsics(640, 480, 381.5, 381.2, 315.5, 237.8)
 
     K = cam_intrinsics.intrinsic_matrix.astype(np.double)
-
-    T_rot =  np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]) @ np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]])
+    
+    T_rot =  (np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]) @
+                np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]])).T
 
     T = np.eye(4)
-    poses = []
+    poses = [odom_from_SE3(dataset.timestamps[0], T)]
+    frame_idx = [0]
 
-    poses.append(odom_from_SE3(dataset.timestamps[0], T))
+    skip = args.skip_frames
 
     min_dist_flag = True
-    min_dist = 0.75
+    min_dist = 0.5
 
     i = 0
     j = i + skip
 
-    while True:
-        try:
-            keypts_2d_1, keypts_2d_2, keypts_3d_1, keypts_3d_2, det_flag = \
-                getMatches(dataset[i], dataset[j], K, type=method)
+    pbar = tqdm(total = len(dataset) - 1)
+    while (j < len(dataset)):
+        keypts_2d_1, keypts_2d_2, keypts_3d_1, keypts_3d_2, det_flag = \
+            getMatches(dataset[i], dataset[j], K, type=method)
 
-            if not det_flag or min(len(keypts_2d_1), len(keypts_2d_2)) < 6:
-                i = i + skip
-                j = j + skip
-                continue
-                # keypts_2d_1, keypts_2d_2, keypts_3d_1, keypts_3d_2, det_flag = \
-                # getMatches(dataset[i], dataset[j], K, type='ORB')
+        if not det_flag or min(len(keypts_2d_1), len(keypts_2d_2)) < 6:
+            i = i + skip
+            j = j + skip
+            continue
 
-            idx = np.where(
-                        (keypts_3d_1[:, -1] <= max_depth) & (keypts_3d_1[:, -1] > 0) &
-                        (keypts_3d_2[:, -1] <= max_depth) & (keypts_3d_2[:, -1] > 0)
-                    )[0]
-            
-            _, rvec, tvec, inliers = cv2.solvePnPRansac(keypts_3d_1[idx].astype(np.float64), keypts_2d_2[idx].astype(np.float64), K, None)
+        idx = np.where(
+                    (keypts_3d_1[:, -1] <= max_depth) & (keypts_3d_1[:, -1] > 0) &
+                    (keypts_3d_2[:, -1] <= max_depth) & (keypts_3d_2[:, -1] > 0)
+                )[0]
+        
+        _, rvec, tvec, inliers = cv2.solvePnPRansac(keypts_3d_1[idx].astype(np.float64), keypts_2d_2[idx].astype(np.float64), K, None)
 
-            if min_dist_flag:
-                if la.norm(tvec) < min_dist and la.norm(rvec) < np.pi / 18:
-                    j = j + 1
-                    continue
-            
-            T_local = la.inv(se3_to_SE3(rvec, tvec))
-            
-            T =  T @ T_local
-            poses.append(odom_from_SE3(dataset[j]['timestamp'], T, T_rot.T))
-
-            i = j
-            if not min_dist_flag:
-                j = j + skip
-            else:
+        if min_dist_flag:
+            if la.norm(tvec) < min_dist and la.norm(rvec) < np.pi / 18:
                 j = j + 1
+                pbar.update(1)
+                continue
+        
+        T_local = la.inv(se3_to_SE3(rvec, tvec))
+        
+        T =  T @ T_local
+        poses.append(odom_from_SE3(dataset[j]['timestamp'], T, T_rot))
+        frame_idx.append(j)
 
-            if args.debug:
-                print(f"Rotation: {T[:3, :3]}\n")
-                print(f"translation: {tvec}\n")
+        i = j
+        if not min_dist_flag:
+            j = j + skip
+            pbar.update(skip)
+        else:
+            j = j + 1
+            pbar.update(1)
+
+        if args.debug:
+            print(f"Rotation: {T[:3, :3]}\n")
+            print(f"translation: {tvec}\n")
+        
+        if args.visualize:
+            w = dataset[i]['rgb'].shape()[1]
+            rgb_match_frame = np.concatenate((dataset[i]['rgb'], dataset[i + 1]['rgb']), 1)
+            for kp in keypts_2d_1[idx]:
+                cv2.circle(rgb_match_frame, (int(kp[0]), int(kp[1])), 3, (255, 0, 0), -1)
+
+            for kp in keypts_2d_2[idx]:
+                cv2.circle(rgb_match_frame, (int(kp[0]) + w,
+                        int(kp[1])), 3, (0, 0, 255), -1)
+            output_frame = np.copy(rgb_match_frame)
+        
+            for kp_l, kp_r in zip(keypts_2d_1.astype(np.int64), keypts_2d_2.astype(np.int64)):
+                cv2.line(rgb_match_frame, (kp_l[0], kp_l[1]), (kp_r[0] + w, kp_r[1]), (0, 255, 255), 2)
             
-            if args.visualize:
-                w = 640
-                rgb_match_frame = np.concatenate((dataset[i]['rgb'], dataset[i + 1]['rgb']), 1)
-                for kp in keypts_2d_1[idx]:
-                    cv2.circle(rgb_match_frame, (int(kp[0]), int(kp[1])), 3, (255, 0, 0), -1)
+            cv2.imshow("output", rgb_match_frame)
+            cv2.waitKey(1)
 
-                for kp in keypts_2d_2[idx]:
-                    cv2.circle(rgb_match_frame, (int(kp[0]) + w,
-                            int(kp[1])), 3, (0, 0, 255), -1)
-                output_frame = np.copy(rgb_match_frame)
-            
-                for kp_l, kp_r in zip(keypts_2d_1.astype(np.int64), keypts_2d_2.astype(np.int64)):
-                    cv2.line(rgb_match_frame, (kp_l[0], kp_l[1]), (kp_r[0] + w, kp_r[1]), (0, 255, 255), 2)
-                # output_frame = np.concatenate((output_frame, rgb_match_frame), 0)
-                
-                cv2.imshow("output", rgb_match_frame)
-                cv2.waitKey(1)
-
-        except IndexError:
-            print('Exiting')
-            break
-
+    pbar.close()
     cv2.destroyAllWindows()
 
     poses = np.asarray(poses)
+    frame_idx = np.asarray(frame_idx)
 
     cam_dir = 'front' if 'front' in args.data_root_path else 'right'
 
@@ -225,18 +258,18 @@ if __name__ == "__main__":
 
         fig,(ax1, ax2, ax3) = plt.subplots(3, 1)
 
-        ax1.plot(y, z, 'r', label='Estimated')
-        ax1.plot(gt_y, gt_z ,'b', label='LIDAR Poses')
+        ax1.plot(y, z, 'r', label=method)
+        ax1.plot(gt_y, gt_z ,'b', label='liosam')
         ax1.set_xlabel('Y')
         ax1.set_ylabel('Z')
         ax1.legend()
-        ax2.plot(x, z, 'r', label='Estimated')
-        ax2.plot(gt_x, gt_z, 'b', label='LIDAR Poses')
+        ax2.plot(x, z, 'r', label=method)
+        ax2.plot(gt_x, gt_z, 'b', label='liosam')
         ax2.set_xlabel('X')
         ax2.set_ylabel('Z')
         ax2.legend()
-        ax3.plot(x, y, 'r', label='Estimated')
-        ax3.plot(gt_x, gt_y, 'b', label='LIDAR Poses')
+        ax3.plot(x, y, 'r', label=method)
+        ax3.plot(gt_x, gt_y, 'b', label='liosam')
         ax3.set_xlabel('X')
         ax3.set_ylabel('Y')
         ax3.legend()
@@ -251,4 +284,5 @@ if __name__ == "__main__":
     if not min_dist_flag:
         np.savetxt(f"../../eval_data/{cam_dir}/{dataset_name}{method}/PnP/poses_skip_{skip}.txt", poses)
     else:
+        np.savetxt(f"../../eval_data/{cam_dir}/{dataset_name}{method}/PnP/frames_min_dist_{min_dist}_10deg.txt", frame_idx)
         np.savetxt(f"../../eval_data/{cam_dir}/{dataset_name}{method}/PnP/poses_min_dist_{min_dist}_10deg.txt", poses)

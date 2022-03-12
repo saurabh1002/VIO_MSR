@@ -3,20 +3,17 @@ import sys
 sys.path.append(os.pardir)
 import argparse
 from tqdm import tqdm
+from typing import Tuple
 
-from utils.icp import *
 from utils.utils import *
 from superpoint_matching import nn_match_two_way
 from utils.dataloader import DatasetOdometry, DatasetOdometryAll
-
-from tqdm import tqdm
 
 import cv2
 import open3d as o3d
 import numpy as np
 import numpy.linalg as la
 import matplotlib.pyplot as plt
-import scipy.spatial.transform as tf
 
 
 def getMatches(keypts_1: dict, keypts_2: dict, threshold: float = 0.7) -> Tuple[np.ndarray, np.ndarray]:

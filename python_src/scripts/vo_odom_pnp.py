@@ -4,12 +4,10 @@ sys.path.append(os.pardir)
 import argparse
 from tqdm import tqdm
 
-from utils.icp import *
 from utils.utils import *
 from descriptor_3d_hist import *
 from superpoint_matching import nn_match_two_way
 from utils.dataloader import DatasetOdometry, DatasetOdometryAll
-
 
 import cv2
 import open3d as o3d

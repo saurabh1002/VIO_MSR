@@ -1,30 +1,17 @@
-#!/usr/bin/env python
-
-# ==============================================================================
-
-# @Authors: Saurabh Gupta
-# @email: s7sagupt@uni-bonn.de
-
-# ==============================================================================
-
-# ==============================================================================
-# -- imports -------------------------------------------------------------------
-# ==============================================================================
+import os
+import sys
+sys.path.append(os.pardir)
+import copy
 import pickle
 import argparse
 from tqdm import tqdm
+from typing import Tuple
 
 import cv2
-import open3d as o3d
-from scipy.spatial import transform as tf
 import numpy as np
-
+import open3d as o3d
 from matplotlib import pyplot as plt
-
-import os
-import sys
-import copy
-sys.path.append(os.pardir)
+from scipy.spatial import transform as tf
 
 from utils.ransac_homography import *
 from utils.icp import *
@@ -37,7 +24,7 @@ def draw_registration_result(source, target, transformation):
     source_temp.transform(transformation)
     o3d.visualization.draw_geometries([source_temp, target_temp])
 
-def process_input_data(bboxes_path: str, associations_path: str) -> tuple[dict, list, list]:
+def process_input_data(bboxes_path: str, associations_path: str) -> Tuple[dict, list, list]:
     ''' Loads the input data for further use
 
     Arguments
@@ -83,7 +70,7 @@ def get_depth_mask(depth_frame_shape: tuple, keypoint: np.ndarray) -> (np.ndarra
     return depth_mask
 
 def get_keypoints(depth_frame: np.ndarray, keypts_2d: np.ndarray, rgb_camera_intrinsic: o3d._pybind_cuda,
-    depth_scale: float = 1000) -> tuple[np.ndarray, np.ndarray]:
+    depth_scale: float = 1000) -> Tuple[np.ndarray, np.ndarray]:
     ''' Computes 3D keypoints from the detection centers in the RGB frame and associated depth frame
     
     Arguments
@@ -159,11 +146,11 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description='''This script generates custom descriptors for 3D macro keypoints''')
 
     # Dataset paths
-    parser.add_argument('-b', '--bboxes_path', default='../../datasets/phenorob/images_apples/detection.pickle', type=str,
+    parser.add_argument('-b', '--bboxes_path', default='../../datasets/phenorob/images_apples_right/detection.pickle', type=str,
         help='Path to the centernet object detection bounding box coordinates')
-    parser.add_argument('-a', '--associations_path', default='../../datasets/phenorob/images_apples/associations_rgbd.txt', type=str,
+    parser.add_argument('-a', '--associations_path', default='../../datasets/phenorob/images_apples_right/associations_rgbd.txt', type=str,
         help='Path to the associations file for RGB and Depth frames')
-    parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/images_apples/', type=str,
+    parser.add_argument('-i', '--data_root_path', default='../../datasets/phenorob/images_apples_right/', type=str,
         help='Path to the root directory of the dataset')
 
     parser.add_argument('-v', '--visualize', default=False, type=bool, help='Visualize results')
@@ -225,8 +212,6 @@ if __name__=='__main__':
         res = o3d.pipelines.registration.registration_icp(pcl_2, pcl_1, 0.025, res.transformation)
         
         T_new = res.transformation
-
-        # o3d.visualization.draw_geometries([pcl_1])
 
         T = T @ T_new
 

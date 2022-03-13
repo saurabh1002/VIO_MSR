@@ -1,12 +1,3 @@
-#!/usr/bin/env python
-
-# ==============================================================================
-
-# @Authors: Saurabh Gupta
-# @email: s7sagupt@uni-bonn.de
-
-# ==============================================================================
-
 from typing import Tuple
 import numpy as np
 import open3d as o3d

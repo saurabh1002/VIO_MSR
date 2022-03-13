@@ -1,34 +1,21 @@
-#!/usr/bin/env python
-
-# ==============================================================================
-
-# @Authors: Saurabh Gupta
-# @email: s7sagupt@uni-bonn.de
-
-# ==============================================================================
-
-# ==============================================================================
-# -- imports -------------------------------------------------------------------
-# ==============================================================================
+import os
+import sys
+sys.path.append(os.pardir)
 import pickle
 import argparse
+from typing import Tuple
 
 import cv2
 import open3d as o3d
 import scipy.spatial
-
 import numpy as np
 import numpy.linalg as la
-
-import os
-import sys
-sys.path.append(os.pardir)
 
 from utils.ransac_homography import *
 from utils.utils import wrapTo2Pi
 
 
-def process_input_data(bboxes_path: str, associations_path: str) -> tuple[dict, list, list]:
+def process_input_data(bboxes_path: str, associations_path: str) -> Tuple[dict, list, list]:
     ''' Loads the input data for further use
 
     Arguments
@@ -74,7 +61,7 @@ def get_depth_mask(depth_frame_shape: tuple, keypoint: np.ndarray) -> (np.ndarra
     return depth_mask
 
 def get_keypoints(depth_frame: np.ndarray, keypts_2d: np.ndarray, rgb_camera_intrinsic: o3d._pybind_cuda,
-    depth_scale: float = 1000) -> tuple[np.ndarray, np.ndarray]:
+    depth_scale: float = 1000) -> Tuple[np.ndarray, np.ndarray]:
     ''' Computes 3D keypoints from the detection centers in the RGB frame and associated depth frame
     
     Arguments

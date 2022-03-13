@@ -19,7 +19,11 @@ if __name__ == '__main__':
         boxes = []
         with open(os.path.join(args.path,names),'r') as f:
             lines = f.readlines()
+                
             for line in lines:
+                if line == 'None':
+                    print(names)
+                    break
                 xywh = line.split(" ")
                 x_center = round(float(xywh[1]) * h)
                 y_center = round(float(xywh[2]) * w)
@@ -29,11 +33,4 @@ if __name__ == '__main__':
             f.close()
         data[img_name] = boxes
     
-    pickle.dump(data,open(os.path.join(os.path.join(args.outpath,"detections"),"detection.pickle"),'wb'))                
-
-
-
-
-                
-
-
+    pickle.dump(data,open(os.path.join(os.path.join(args.outpath,"detections"),"detection.pickle"),'wb'))

@@ -12,7 +12,6 @@
 # ==============================================================================
 import pickle
 import argparse
-from numpy.lib.histograms import histogram
 from tqdm import tqdm
 
 import cv2
@@ -24,8 +23,9 @@ from matplotlib import pyplot as plt
 
 import os
 import sys
-import copy
 sys.path.append(os.pardir)
+import copy
+from typing import Tuple
 
 from utils.ransac_homography import *
 from utils.icp import *
@@ -38,8 +38,8 @@ def draw_registration_result(source, target, transformation):
     source_temp.transform(transformation)
     o3d.visualization.draw_geometries([source_temp, target_temp])
 
-def process_input_data(bboxes_path: str, associations_path: str) -> tuple[dict, list, list]:
-    ''' Loads the input data for further use
+def process_input_data(bboxes_path: str, associations_path: str) -> Tuple[dict, list, list]:
+    '''Loads the input data for further use
 
     Arguments
     ---------
@@ -84,8 +84,8 @@ def get_depth_mask(depth_frame_shape: tuple, keypoint: np.ndarray) -> (np.ndarra
     return depth_mask
 
 def get_keypoints(depth_frame: np.ndarray, keypts_2d: np.ndarray, rgb_camera_intrinsic: o3d._pybind_cuda,
-    depth_scale: float = 1000) -> tuple[np.ndarray, np.ndarray]:
-    ''' Computes 3D keypoints from the detection centers in the RGB frame and associated depth frame
+    depth_scale: float = 1000) -> Tuple[np.ndarray, np.ndarray]:
+    '''Computes 3D keypoints from the detection centers in the RGB frame and associated depth frame
     
     Arguments
     ---------
@@ -98,7 +98,6 @@ def get_keypoints(depth_frame: np.ndarray, keypts_2d: np.ndarray, rgb_camera_int
     -------
     - keypts_2d: 2D keypoints in the frame
     - keypts_3d: corresponding 3D keypoints in the frame
-
     '''
     keypts_3d = []
     pcl_gen_flag = []

@@ -1,18 +1,7 @@
-#!/usr/bin/env python
-
-# ==============================================================================
-
-# @Authors: Saurabh Gupta
-# @email: s7sagupt@uni-bonn.de
-
-# ==============================================================================
-
-# ==============================================================================
-# -- imports -------------------------------------------------------------------
-# ==============================================================================
 import pickle
 import argparse
 from tqdm import tqdm
+from typing import Tuple
 
 import cv2
 import open3d as o3d
@@ -37,7 +26,7 @@ def draw_registration_result(source, target, transformation):
     source_temp.transform(transformation)
     o3d.visualization.draw_geometries([source_temp, target_temp])
 
-def process_input_data(bboxes_path: str, associations_path: str) -> tuple[dict, list, list]:
+def process_input_data(bboxes_path: str, associations_path: str) -> Tuple[dict, list, list]:
     ''' Loads the input data for further use
 
     Arguments
@@ -83,7 +72,7 @@ def get_depth_mask(depth_frame_shape: tuple, keypoint: np.ndarray) -> (np.ndarra
     return depth_mask
 
 def get_keypoints(depth_frame: np.ndarray, keypts_2d: np.ndarray, rgb_camera_intrinsic: o3d._pybind_cuda,
-    depth_scale: float = 1000) -> tuple[np.ndarray, np.ndarray]:
+    depth_scale: float = 1000) -> Tuple[np.ndarray, np.ndarray]:
     ''' Computes 3D keypoints from the detection centers in the RGB frame and associated depth frame
     
     Arguments

@@ -1,16 +1,16 @@
-import argparse
-import pickle
 import os
-
+import pickle
+import argparse
 from tqdm import tqdm
+from typing import Tuple
 
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
 import open3d as o3d
+from matplotlib import pyplot as plt
 
 
-def process_input_data(bboxes_path: str, associations_path: str) -> tuple[dict, list, list]:
+def process_input_data(bboxes_path: str, associations_path: str) -> Tuple[dict, list, list]:
     ''' Loads the input data for further use
 
     Arguments
@@ -39,9 +39,8 @@ def process_input_data(bboxes_path: str, associations_path: str) -> tuple[dict, 
 
     return bboxes_data, rgb_frame_names, depth_frame_names
 
-parser = argparse.ArgumentParser(description='''This script generates custom descriptors for 3D macro keypoints''')
 
-# Dataset paths
+parser = argparse.ArgumentParser(description='''Colorspace Thresholding for apple detection''')
 parser.add_argument('-b', '--bboxes_path', default='../../datasets/phenorob/images_apples_right/detection.pickle', type=str,
     help='Path to the centernet object detection bounding box coordinates')
 parser.add_argument('-a', '--associations_path', default='../../datasets/phenorob/images_apples_right/associations_rgbd.txt', type=str,

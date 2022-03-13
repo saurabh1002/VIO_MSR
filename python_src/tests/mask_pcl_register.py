@@ -138,7 +138,7 @@ if __name__=='__main__':
         # depth_frame_2 = np.multiply(depth_frame_2, depth_mask)
         rgbd_2 = o3d.geometry.RGBDImage.create_from_color_and_depth(o3d.geometry.Image(rgb_frame_2),
          o3d.geometry.Image(depth_frame_2),
-          depth_scale=1, depth_trunc=10000, convert_rgb_to_intensity=False)
+          depth_scale=1000, depth_trunc=10, convert_rgb_to_intensity=False)
         source = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_2, rgb_camera_intrinsic)
         res = o3d.pipelines.registration.registration_icp(source, target, 0.002)
 

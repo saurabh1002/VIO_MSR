@@ -1,31 +1,17 @@
-#!/usr/bin/env python
-
-# ==============================================================================
-
-# @Authors: Saurabh Gupta
-# @email: s7sagupt@uni-bonn.de
-
-# MSR Project Sem 3: Visual Inertial Odometry in Orchard Environments
-
-# ==============================================================================
-
-# ==============================================================================
-# -- imports -------------------------------------------------------------------
-# ==============================================================================
+import os
+import sys
+sys.path.append(os.pardir)
 import pickle
 import argparse
 from tqdm import tqdm
+from typing import Tuple
 
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 
-import os
-import sys
-import copy
-sys.path.append(os.pardir)
 
-def process_input_data(bboxes_path: str, associations_path: str) -> tuple[dict, list]:
+def process_input_data(bboxes_path: str, associations_path: str) ->Tuple[dict, list]:
     ''' Loads the input data for further use
 
     Arguments
@@ -100,12 +86,11 @@ if __name__=='__main__':
         img_match = np.zeros((h, 2 * w, d), np.uint8)
 
         cv2.drawMatches(img_bgr_a, keypoints_a, img_bgr_b, keypoints_b, matches[:50], img_match, 2, (0, 255, 255), (255, 0, 0), None, flags=cv2.DrawMatchesFlags_DEFAULT)
-        # cv2.putText(img_match, 'Frame i: No. of keypoints detected: {}'.format(len(keypoints_a)), (0, 450), cv2.FONT_HERSHEY_DUPLEX, 0.75, (0, 0, 0), 2)
-        # cv2.putText(img_match, 'Frame i+{}: No. of keypoints detected: {}'.format(skip_frames, len(keypoints_b)), (640, 450), cv2.FONT_HERSHEY_DUPLEX, 0.75, (0, 0, 0), 2)
+        cv2.putText(img_match, 'Frame i: No. of keypoints detected: {}'.format(len(keypoints_a)), (0, 450), cv2.FONT_HERSHEY_DUPLEX, 0.75, (0, 0, 0), 2)
+        cv2.putText(img_match, 'Frame i+{}: No. of keypoints detected: {}'.format(skip_frames, len(keypoints_b)), (640, 450), cv2.FONT_HERSHEY_DUPLEX, 0.75, (0, 0, 0), 2)
 
         cv2.imshow('matches', img_match)
         cv2.waitKey(0)
-        # cv2.imwrite('tmp/img_{}.png'.format(i), img_match)
 
     fig, (ax1, ax2) = plt.subplots(1, 2)
     ax1.hist(num_of_keypoints)

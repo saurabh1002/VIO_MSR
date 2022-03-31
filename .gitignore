@@ -52,6 +52,8 @@ cmake/
 __pycache__/
 .Python
 
+# ROS
+*.bag
 
 # Miscellaneous
 *.zip
@@ -62,4 +64,7 @@ __pycache__/
 .vscode/
 MANIFEST
 DS_Store
-
+/data
+/datasets
+/bin
+/lib
